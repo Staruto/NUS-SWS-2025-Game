@@ -1,0 +1,321 @@
+import{
+    set_dimensions, create_rectangle, create_sprite, create_text,
+    query_position, query_scale, update_color, update_position, update_scale,
+    update_text, update_to_top, set_fps, get_loop_count, enable_debug,
+    debug_log, input_key_down, gameobjects_overlap, update_loop, build_game, 
+    create_audio, loop_audio, stop_audio, play_audio, get_game_time, create_circle
+} from "arcade_2d";
+
+enable_debug();
+
+// 一：设置画布、定义常量
+set_dimensions([1000,600]);
+const background=update_position(update_color(create_rectangle(1000,600),[205,118,71,255]),[500,300]);
+
+const GRAVITY=2;        
+const JUMP_FORCE=-25;
+
+// 玩家相关
+const P_WIDTH = 12;
+const P_HEIGHT = 34;
+
+const P_MOVE_V=5;
+
+const player= update_position(create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/level-2/static.png"),[100,229]);
+
+// solids
+const solid = [];
+
+solid[0]=update_position(update_color(create_rectangle(1000,120),[47, 21, 9, 255]),[500,60]);// Ceiling
+solid[1]=update_position(update_color(create_rectangle(39,204),[47, 21, 9, 255]),[96,348]);// ground 1
+solid[2]=update_position(update_color(create_rectangle(39,204),[47, 21, 9, 255]),[134,348]);// trap 1 (falling)
+solid[3]=update_position(update_color(create_rectangle(39,42),[47, 21, 9, 255]),[212,267]);// push 1
+solid[4]=update_position(update_color(create_rectangle(150,204),[47, 21, 9, 255]),[229,348]);// ground 2
+solid[5]=update_position(update_color(create_rectangle(39,204),[47, 21, 9, 255]),[323,348]);// trap 2 (translating)
+solid[6]=update_position(update_color(create_rectangle(39,81),[47, 21, 9, 255]),[421,287]); // push 2
+solid[7]=update_position(update_color(create_rectangle(302,204),[47, 21, 9, 255]),[494,348]);// ground 3
+solid[8]=update_position(update_color(create_rectangle(39,204),[47, 21, 9, 255]),[664,348]);// trap 3 (falling)
+solid[9]=update_position(update_color(create_rectangle(39,80),[47, 21, 9, 255]),[761,280]);// block
+solid[10]=update_position(update_color(create_rectangle(77,204),[47, 21, 9, 255]),[722,348]);// trap 4 (translating)
+solid[11]=update_position(update_color(create_rectangle(152,204),[47, 21, 9, 255]),[837,348]);// ground 4
+solid[12]=update_position(update_color(create_rectangle(39,204),[47, 21, 9, 255]),[932,348]);// trap 5 (translating)
+
+const fallingV=6;
+const translatingV=6;
+const appearingV=12;
+
+const ws=[1000,39,39,39,150,39,39,302,39,39,77,152,39];
+const hs=[120,204,204,42,204,204,81,204,204,80,204,204,204];
+
+// state
+let on_obj=false;
+let vY=0;
+let alive=true;
+let trapSequence=0;
+let recoverSequence=0;
+let gametime=0;
+
+const door=update_position(create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/level-2/door.png"),[932,220]);// door pix [38,40]
+
+function x(object){
+    return query_position(object)[0];
+}
+
+function y(object){
+    return query_position(object)[1];
+}
+
+// 二：主循环
+update_loop(game_state => {
+    // alive
+    if(!alive){
+        return undefined;
+    }
+    
+    // player movement
+    const playerPos=query_position(player);
+    
+    if(input_key_down("a")){
+        playerPos[0]=playerPos[0]- P_MOVE_V;
+    }
+    
+    if(input_key_down("d")){
+        playerPos[0]=playerPos[0]+ P_MOVE_V;
+    }
+    
+    if(!on_obj){
+        vY=vY+GRAVITY;
+        playerPos[1]=playerPos[1]+vY;
+    }
+    
+    if(input_key_down("w")&&on_obj){
+        vY=JUMP_FORCE;
+        on_obj=false;
+    }
+
+    // Reset on_obj before checking collisions
+    on_obj = false;
+    
+    for (let i = 0; i < array_length(solid); i=i+1) {
+        const objPos = query_position(solid[i]);
+        const objScale = [ws[i],hs[i]];
+
+        // 计算玩家和物体的边界
+        const playerBottom = playerPos[1] + P_HEIGHT / 2;
+        const playerTop = playerPos[1] - P_HEIGHT / 2;
+        const objTop = objPos[1] - objScale[1] / 2;
+        const objBottom = objPos[1] + objScale[1] / 2;
+        
+        // 顶部碰撞检测（玩家站在物体上）
+        if (
+            playerBottom >= objTop && // 玩家底部在物体顶部之下
+            playerBottom <= objTop + 10 && // 允许小范围重叠
+            playerPos[0] + P_WIDTH / 2 > objPos[0] - objScale[0] / 2 && // 玩家右侧在物体左侧之右
+            playerPos[0] - P_WIDTH / 2 < objPos[0] + objScale[0] / 2    // 玩家左侧在物体右侧之左
+        ){
+            playerPos[1] = objTop - P_HEIGHT / 2; // 修正玩家位置
+            vY = 0; // 重置垂直速度
+            on_obj = true; // 标记为站在物体上
+        }
+        
+        // 右侧碰撞检测
+        if((playerPos[0]+P_WIDTH/2 >= objPos[0]-objScale[0]/2) &&
+           (playerPos[0]+P_WIDTH/2 <= objPos[0]-objScale[0]/2 + objScale[0]/4) &&
+           (playerBottom > objTop) &&
+           (playerTop < objBottom)){
+            playerPos[0]=objPos[0] - objScale[0]/2 - P_WIDTH/2; 
+        }
+        
+        // 左侧碰撞检测
+        if((playerPos[0]-P_WIDTH/2 <= objPos[0]+objScale[0]/2) &&
+           (playerPos[0]-P_WIDTH/2 >= objPos[0]+objScale[0]/2 - objScale[0]/4) &&
+           (playerBottom > objTop) &&
+           (playerTop < objBottom)){
+            playerPos[0]=objPos[0] + objScale[0]/2 + P_WIDTH/2; 
+        }
+    }
+    
+    // trap 1 falling
+    if(playerPos[0]>=111 && playerPos[1]<=300 && input_key_down("d") && trapSequence===0){
+        trapSequence=1;
+    }
+    
+    if(trapSequence===1){
+        update_position(solid[2],[x(solid[2]),y(solid[2])+fallingV]);
+    }
+    
+    if(y(solid[2])>=1000 && recoverSequence===0){
+        recoverSequence=1;
+    }
+    
+    if(recoverSequence===1){
+        update_position(solid[2],[x(solid[2]),y(solid[2])-fallingV]);
+    }
+    
+    if(y(solid[2])<=243 && recoverSequence===1){
+        update_position(solid[2],[x(solid[2]),245]);
+        recoverSequence=0;
+    }
+    
+    // push 1
+    if(playerPos[0]>=172 && playerPos[1]<=300 && input_key_down("d") && trapSequence===1){
+        trapSequence=2;
+    }
+    
+    if(trapSequence===2){
+        update_position(solid[3],[x(solid[3]),y(solid[3])-appearingV]);
+    }
+    
+    if(y(solid[3])<=225 && trapSequence===2){
+        trapSequence=3;
+    }
+    
+    if(trapSequence===3){
+        update_position(solid[3],[x(solid[3])-translatingV,y(solid[3])]); // Fixed: was [x(solid[3]),x(solid[3])]
+    }
+    
+    if(x(solid[3])<=173 && trapSequence===3){
+        update_position(solid[3],[173,y(solid[3])+appearingV]);
+    }
+    
+    if(y(solid[3])>=267 && trapSequence===3){
+        trapSequence=4;
+    }
+    
+    // trap 2
+    if(playerPos[0]>=222 && playerPos[1]<=300 && input_key_down("d") && trapSequence===4){
+        trapSequence=5; 
+    }
+    
+    if(trapSequence===5){
+        update_position(solid[5],[x(solid[5])+appearingV,y(solid[5])]);
+    }
+    
+    if(x(solid[5])>=362 && trapSequence===5){
+        trapSequence=6;
+    }
+    
+    if(trapSequence===6){
+        update_position(solid[5],[x(solid[5])-appearingV,y(solid[5])]);
+    }
+    
+    if(x(solid[5])<=322 && trapSequence===6){
+        update_position(solid[5],[323,y(solid[5])]);
+    }
+    
+    // push 2 
+    if(playerPos[0]>=380 && playerPos[1]<=300 && trapSequence===6){
+        trapSequence=7;
+    }
+    
+    if(trapSequence===7){
+        update_position(solid[6],[x(solid[6]),y(solid[6])-appearingV]); // Fixed: was y(solid[1])
+        update_position(solid[5],[x(solid[5])+appearingV,y(solid[5])]);  
+    }
+    
+    if(y(solid[6])<=267 && trapSequence===7){
+        trapSequence=8;
+    }
+    
+    if(trapSequence===8){
+        update_position(solid[6],[x(solid[6])-translatingV,267]);
+    }
+    
+    if(x(solid[6])<=110 && trapSequence===8){
+        trapSequence=9;
+    }
+    
+    if(trapSequence===9){
+        update_position(solid[6],[110,y(solid[6])+appearingV]);
+        update_position(solid[5],[x(solid[5])-appearingV,y(solid[5])]);
+    }
+    
+    if(y(solid[6])>=287 && trapSequence===9){ // Changed from 290 to 287 (original height)
+        trapSequence=10;
+    }
+
+    // trap 4
+    if(playerPos[0]>=655 && trapSequence===10){
+        trapSequence=11;
+    }
+    
+    if(trapSequence===11){
+        update_position(solid[10],[x(solid[10])+translatingV,y(solid[10])]);
+    }
+    
+    if(x(solid[10])>=800 && trapSequence===11){
+        gametime=get_game_time(); // Fixed: was get_time
+        trapSequence=12;
+    }
+
+    // trap 3 falling
+    if(playerPos[0]>=600 && trapSequence===12){
+        trapSequence=13;
+    }
+    
+    if(trapSequence===13 && get_game_time()-gametime>=500){ // Fixed: comparison
+        update_position(solid[8],[x(solid[8]),y(solid[8])+fallingV]);
+    }
+    
+    if(y(solid[8])>=1000 && trapSequence===13){
+        trapSequence=14;
+    }
+    
+    if(trapSequence===14){
+        update_position(solid[8],[x(solid[8]),y(solid[8])-fallingV]);
+    }
+    
+    if(y(solid[8])<=243 && trapSequence===14){
+        trapSequence=15;
+    }
+ 
+    // block
+    if(playerPos[0]>=680 && playerPos[1]<=300 && trapSequence===15){
+        trapSequence=16;
+    }
+    
+    if(trapSequence===16){
+        update_position(solid[9],[x(solid[9]),y(solid[9])-appearingV]);
+    }
+    
+    if(y(solid[9])<=200 && trapSequence===16){
+        trapSequence=17;
+    }
+    
+    if(trapSequence===17){
+        update_position(solid[9],[x(solid[9]),y(solid[9])+appearingV]); // Fixed: was -appearingV
+    }
+    
+    if(y(solid[9])>=280 && trapSequence===17){
+        trapSequence=18;
+    }
+    
+    // trap 5
+    if(playerPos[0]>=870 && playerPos[1]<=300 && trapSequence===18){
+        trapSequence=19; // Fixed: was ===18
+    }
+    
+    if(trapSequence===19){ // Fixed: was 18
+        update_position(solid[12],[x(solid[12])+translatingV,y(solid[12])]);
+        update_position(door,[x(door)+translatingV,y(door)]);
+    }
+    
+    if(x(solid[12])>=970 && trapSequence===19){ // Fixed: was 18
+        update_position(solid[12],[970,y(solid[12])]); // Fixed: was 971
+        update_position(door,[970,y(door)]); // Fixed: was 971
+        trapSequence=20;
+    }
+ 
+    update_position(player,playerPos);
+   
+    if(gameobjects_overlap(player,door)){
+        update_position(player,[970,211]);
+        return undefined;
+    }
+    
+    debug_log("Player position: " + stringify(playerPos));
+    debug_log("On object: " + stringify(on_obj));
+});
+
+// 三：构建游戏
+build_game();
