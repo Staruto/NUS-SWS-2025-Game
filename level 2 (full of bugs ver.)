@@ -1,3 +1,4 @@
+
 import{
     set_dimensions, create_rectangle, create_sprite, create_text,
     query_position, query_scale, update_color, update_position, update_scale,
@@ -95,44 +96,52 @@ update_loop(game_state => {
 
     // Reset on_obj before checking collisions
     on_obj = false;
-    
-    for (let i = 0; i < array_length(solid); i=i+1) {
+    let on_object_check = 0;
+    for (let i = 0; i < array_length(solid); i = i + 1) {
         const objPos = query_position(solid[i]);
-        const objScale = [ws[i],hs[i]];
-
-        // 计算玩家和物体的边界
-        const playerBottom = playerPos[1] + P_HEIGHT / 2;
-        const playerTop = playerPos[1] - P_HEIGHT / 2;
-        const objTop = objPos[1] - objScale[1] / 2;
-        const objBottom = objPos[1] + objScale[1] / 2;
-        
-        // 顶部碰撞检测（玩家站在物体上）
+        const objW = ws[i];
+        const objH = hs[i];
+        // Top collision (player lands on solid)
+        if (!on_obj && vY >= 0 &&
+            (playerPos[1] + P_HEIGHT/2 >= objPos[1] - objH/2) &&
+            (playerPos[1] + P_HEIGHT/2 <= objPos[1] - objH/2 + 50) &&
+            (playerPos[0] + P_WIDTH/2 > objPos[0] - objW/2) &&
+            (playerPos[0] - P_WIDTH/2 < objPos[0] + objW/2)) {
+            playerPos[1] = objPos[1] - objH/2 - P_HEIGHT/2;
+            vY = 0;
+            on_obj = true;
+            on_object_check = 1;
+        }
+        // Bottom collision (player jumps and hits bottom of solid)
+        else if (vY < 0 &&
+            (playerPos[1] - P_HEIGHT/2 <= objPos[1] + objH/2) &&
+            (playerPos[1] - P_HEIGHT/2 >= objPos[1] + objH/2 - 50) &&
+            (playerPos[0] + P_WIDTH/2 > objPos[0] - objW/2) &&
+            (playerPos[0] - P_WIDTH/2 < objPos[0] + objW/2)) {
+            playerPos[1] = objPos[1] + objH/2 + P_HEIGHT/2;
+            vY = 0;
+        }
+        // Left collision (player runs into right side of solid)
         if (
-            playerBottom >= objTop && // 玩家底部在物体顶部之下
-            playerBottom <= objTop + 10 && // 允许小范围重叠
-            playerPos[0] + P_WIDTH / 2 > objPos[0] - objScale[0] / 2 && // 玩家右侧在物体左侧之右
-            playerPos[0] - P_WIDTH / 2 < objPos[0] + objScale[0] / 2    // 玩家左侧在物体右侧之左
-        ){
-            playerPos[1] = objTop - P_HEIGHT / 2; // 修正玩家位置
-            vY = 0; // 重置垂直速度
-            on_obj = true; // 标记为站在物体上
+            (playerPos[0] + P_WIDTH/2 >= objPos[0] - objW/2) &&
+            (playerPos[0] + P_WIDTH/2 <= objPos[0] - objW/2 + 50) &&
+            (playerPos[1] + P_HEIGHT/2 > objPos[1] - objH/2) &&
+            (playerPos[1] - P_HEIGHT/2 < objPos[1] + objH/2)
+        ) {
+            playerPos[0] = objPos[0] - objW/2 - P_WIDTH/2;
         }
-        
-        // 右侧碰撞检测
-        if((playerPos[0]+P_WIDTH/2 >= objPos[0]-objScale[0]/2) &&
-           (playerPos[0]+P_WIDTH/2 <= objPos[0]-objScale[0]/2 + objScale[0]/4) &&
-           (playerBottom > objTop) &&
-           (playerTop < objBottom)){
-            playerPos[0]=objPos[0] - objScale[0]/2 - P_WIDTH/2; 
+        // Right collision (player runs into left side of solid)
+        else if (
+            (playerPos[0] - P_WIDTH/2 <= objPos[0] + objW/2) &&
+            (playerPos[0] - P_WIDTH/2 >= objPos[0] + objW/2 - 50) &&
+            (playerPos[1] + P_HEIGHT/2 > objPos[1] - objH/2) &&
+            (playerPos[1] - P_HEIGHT/2 < objPos[1] + objH/2)
+        ) {
+            playerPos[0] = objPos[0] + objW/2 + P_WIDTH/2;
         }
-        
-        // 左侧碰撞检测
-        if((playerPos[0]-P_WIDTH/2 <= objPos[0]+objScale[0]/2) &&
-           (playerPos[0]-P_WIDTH/2 >= objPos[0]+objScale[0]/2 - objScale[0]/4) &&
-           (playerBottom > objTop) &&
-           (playerTop < objBottom)){
-            playerPos[0]=objPos[0] + objScale[0]/2 + P_WIDTH/2; 
-        }
+    }
+    if(on_object_check !== 1){
+        on_obj = false;
     }
     
     // trap 1 falling
