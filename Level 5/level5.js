@@ -48,25 +48,26 @@ const FRAME_DELAY = 3;
 
 const ground = update_position(create_rectangle(1200, 400), [500, 500]);
 
-const door = update_position(create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/main/Assets/Door.jpg"), [300, 300]);
+const door = update_position(create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/main/Assets/Door.jpg"), [900, 280]);
 
 const NUM_BUTTONS = 6;
-const ButtonsY = 310;
+const ButtonsY = 295;
+const ButtonScale = [0.6, 0.6];
 
 const button_positions = [
-  [150, ButtonsY],
+  [180, ButtonsY],
   [300, ButtonsY],
-  [450, ButtonsY],
-  [600, ButtonsY],
-  [750, ButtonsY],
-  [900, ButtonsY]
+  [420, ButtonsY],
+  [540, ButtonsY],
+  [660, ButtonsY],
+  [780, ButtonsY]
 ];
 
 const buttons = [];
 
 for (let i = 0; i < NUM_BUTTONS; i = i + 1) {
-  const normal = create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/main/Assets/Button_origin.png");
-  const clicked = create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/main/Assets/Button_clicked.png");
+  const normal = update_scale(create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/main/Assets/Button_origin.png"), ButtonScale);
+  const clicked = update_scale(create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/main/Assets/Button_clicked.png"), ButtonScale);
 
   update_position(normal, button_positions[i]);
   update_position(clicked, [9999, 9999]); // Hide clicked img
@@ -83,7 +84,8 @@ let SHAKE_AMPLITUDE = 2; // amplitude 2
 const objects = [
   [current_player, [70, 280]],
   [ground,         [500, 500]],
-  [door,           [300, 300]]
+  [door,           [920, 275]]
+  
 ];
 
 update_loop(game_state => {
@@ -161,7 +163,7 @@ update_loop(game_state => {
             update_position(clicked, button_positions[i]);
 
             // 效果触发
-            PLAYER_MOVE_SPEED = math_max(1, PLAYER_MOVE_SPEED - 0.8);
+            PLAYER_MOVE_SPEED = math_max(1, PLAYER_MOVE_SPEED - 0.6);
             SHAKE_AMPLITUDE = SHAKE_AMPLITUDE + 2;
         }
     }
