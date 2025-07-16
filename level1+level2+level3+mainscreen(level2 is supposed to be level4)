@@ -1,0 +1,1369 @@
+
+import { set_dimensions, create_rectangle, create_sprite, create_text, query_position, query_scale, update_color, update_position, update_scale, update_text, update_to_top, set_fps, get_loop_count, enable_debug, debug_log, input_key_down, gameobjects_overlap, update_loop, build_game, create_audio, loop_audio, stop_audio, play_audio, get_game_time } from "arcade_2d";
+enable_debug();
+set_dimensions([1000, 600]);
+const GRAVITY = 2;
+const JUMP_FORCE = -25;
+const GROUND_LEVEL = 500;
+
+const PLAYER_WIDTH = 20;
+const PLAYER_HEIGHT = 40;
+
+const PLAYER_MOVE_SPEED = 5;
+const player = update_position(create_rectangle(PLAYER_WIDTH, PLAYER_HEIGHT), [-700,-700]);
+
+const game_solids=[];
+for(let i=0;i<32;i=i+1){ // Increased from 24 to 32 for longer hallway
+    game_solids[i]=update_color(update_position(create_rectangle(100,100),[-500,-500]),[123,63,0,255]);
+}
+
+game_solids[32]=update_color(update_position(create_rectangle(100,100),[-500,-500]),[123,63,100,255]); // purple block
+const game_traps=[];
+for(let i=0;i<30;i=i+1){ // Increased from 20 to 30
+    game_traps[i]=update_color(update_position(create_rectangle(40,20),[-500,-500]),[255,0,0,255]);
+}
+
+const game_through=[];
+for(let i=0;i<5;i=i+1){
+    game_through[i]=update_color(update_position(create_rectangle(40,40),[-500,-500]),[255,0,0,255]);
+}
+
+const door = update_position(create_rectangle(10, 40), [-500, -500]);
+const transportDoor = update_position(create_rectangle(25, 25),[-500,-500]);
+const collision_happened = update_scale(
+    update_position(create_text(""), [300, 300]), 
+    [2.5, 2.5]
+);
+
+let currentState = "select";
+const LEVEL_COUNT = 5;
+const levelButtons=[];
+for(let i=0;i<LEVEL_COUNT;i=i+1){
+    levelButtons[i]=update_position(create_rectangle(60,60),[-500,500]);
+}
+
+const levelTexts=[];
+for(let i=0;i<LEVEL_COUNT;i=i+1){
+    levelTexts[i]=update_position(create_text(""),[-500,-500]);
+}
+
+const titleText = update_scale(
+        update_position(create_text("Select Level"), [-500, -500]),
+        [3, 3]
+    );
+
+const hintText = update_scale(
+        update_position(create_text("Press 1-5 to select level"), [-500,-500]),
+        [1.5, 1.5]
+    );
+const levelDisplayText = update_scale(
+        update_position(create_text(""), [-500,-500]),
+        [4, 4]
+    );
+let objos_list_size = 0;
+let objos_list = [];
+let on_object = false;
+let tryjump = false;
+let velocityY = 0;
+let isCrouching = false;
+let alive = true;
+let trapSequence = 0;
+let gameTime = 0;
+let SPIKES_MOVE_SPEED = 6;
+
+// --- Level 2 objects (from source2.js) ---
+// All objects are hidden by default
+const PLAYER2_WIDTH = 15;
+const PLAYER2_HEIGHT = 25;
+const JUMP2_FORCE = -25;
+const GRAVITY2 = 0.5;
+const PLATFORM2_WIDTH = 1000;
+const PLATFORM2_HEIGHT = 20;
+const PLAYER2_SPEED = 7;
+const TRAP2_SPEED = 7;
+
+const player2 = update_position(create_rectangle(PLAYER2_WIDTH, PLAYER2_HEIGHT), [-500, -500]);
+const platform2 = update_position(create_rectangle(PLATFORM2_WIDTH, PLATFORM2_HEIGHT), [-500, -500]);
+const obstacle2 = update_position(create_rectangle(30, 290), [-500, -500]);
+const door2 = update_position(create_rectangle(25, 33), [-500, -500]);
+const trap2_1 = update_position(create_rectangle(20,20),[-500,-500]);
+const trap2_2 = update_position(create_rectangle(20,20),[-500,-500]);
+const button2_1 = update_position(create_rectangle(10,15),[-500,-500]);
+const button2_2 = update_position(create_rectangle(10,15),[-500,-500]);
+const button2_3 = update_position(create_rectangle(10,15),[-500,-500]);
+const button2_4 = update_position(create_rectangle(10,15),[-500,-500]);
+const button2_5 = update_position(create_rectangle(10,15),[-500,-500]);
+const block2_1 = update_position(create_rectangle(120,30),[-500,-500]);
+const block2_2 = update_position(create_rectangle(120,30),[-500,-500]);
+const block2_3 = update_position(create_rectangle(120,30),[-500,-500]);
+const block2_4 = update_position(create_rectangle(120,30),[-500,-500]);
+const block2_5 = update_position(create_rectangle(120,30),[-500,-500]);
+const traps2_1 = update_position(create_rectangle(50,10),[-500,-500]);
+const traps2_21 = update_position(create_rectangle(50,10),[-500,-500]);
+const traps2_22 = update_position(create_rectangle(50,10),[-500,-500]);
+
+// Level 2 state
+let isUpsideDown2 = false;
+let velocityY2 = 0;
+let canJump2 = true;
+let trap2_1Touch = 0;
+let trap2_2Touch = 0;
+let button2_1Activated = false;
+let button2_2Activated = false;
+let button2_3Activated = false;
+let button2_4Activated = false;
+let button2_5Activated = false;
+let gameOver2 = false;
+let gameWon2 = false;
+
+function level1setup(){
+    alive=true;
+    update_position(player, [70,300]);
+    update_position(door, [875, 305]); // moved door left to avoid overlap with right wall
+    update_position(update_text(collision_happened, ""),[300,300]);
+    // Floor row (longer hallway)
+    for(let i=0;i<10;i=i+1){
+        update_position(game_solids[i],[75+100*i,225]);
+        objos_list[objos_list_size]=i;
+        objos_list_size=objos_list_size+1;
+    }
+    // Ceiling row
+    for(let i=10;i<20;i=i+1){
+        update_position(game_solids[i],[75+100*(i-10),375]);
+        objos_list[objos_list_size]=i;
+        objos_list_size=objos_list_size+1;
+    }
+    // Left wall
+    for(let i=20;i<26;i=i+1){
+        update_position(game_solids[i],[-25,50+100*(i-20)]);
+        objos_list[objos_list_size]=i;
+        objos_list_size=objos_list_size+1;
+    }
+    // Right wall
+    for(let i=26;i<32;i=i+1){
+        update_position(game_solids[i],[975,50+100*(i-26)]);
+        objos_list[objos_list_size]=i;
+        objos_list_size=objos_list_size+1;
+    }
+}
+
+function clearlevel1(){
+    update_position(player, [-700,-700]);
+    update_position(door, [-500, -500]);
+    for(let i=0;i<33;i=i+1){ // 0-32
+        update_position(game_solids[i],[-500,-500]);
+    }
+    objos_list=[];
+    objos_list_size=0;
+    on_object=false;
+    tryjump=false;
+    velocityY=false;
+    isCrouching=false;
+    alive=false;
+    trapSequence=0;
+    gameTime=0;
+    for(let i=0;i<30;i=i+1){ // 0-29
+        update_color(update_position(game_traps[i],[-500,-500]),[255,0,0,255]);
+    }
+    update_position(transportDoor,[-500,-500]);
+    update_position(update_text(collision_happened, ""),[-500,-500]);
+}
+
+function level3setup(){
+    alive=true;
+    update_position(player, [60,400]);
+    update_position(door, [940,430]);
+    objos_list=[0,1,2,3,4,5,6,7,8,9,32]; // changed from 24 to 32
+    objos_list_size=11;
+    update_scale(update_position(game_solids[0],[50,600]),[3,3]);
+    update_scale(update_position(game_solids[1],[950,600]),[3,3]);
+    update_scale(update_position(game_solids[2],[500,200]),[4,0.5]);
+    update_scale(update_position(game_solids[3],[500,0]),[10,0.5]);
+    update_scale(update_position(game_solids[4],[580,150]),[0.2,0.2]);
+    update_scale(update_position(game_solids[5],[620,150]),[0.2,0.2]);
+    update_scale(update_position(game_solids[6],[620,110]),[0.2,0.2]);
+    update_scale(update_position(game_solids[7],[660,150]),[0.2,0.2]);
+    update_scale(update_position(game_solids[8],[660,110]),[0.2,0.2]);
+    update_scale(update_position(game_solids[9],[660,70]),[0.2,0.2]);
+    update_scale(update_position(game_through[0],[90,430]),[0.5,0.5]);
+    update_scale(update_position(game_through[1],[130,430]),[0.5,0.5]);
+    update_scale(update_position(game_traps[0],[170,430]),[0.5,1]);
+    update_scale(update_position(game_solids[32],[255,530]),[0.5,0.5]); // changed from 24 to 32
+}
+function move_obstacle_left(ob,speed) {
+    debug_log("moving obstacles");
+    return update_position(ob,[query_position(ob)[0]-speed,query_position(ob)[1]]);
+}
+
+function move_obstacle_right(ob,speed) {
+    debug_log("moving obstacles");
+    return update_position(ob,[query_position(ob)[0]+speed,query_position(ob)[1]]);
+}
+
+function move_obstacle_up(ob,speed) {
+    debug_log("moving obstacles");
+    return update_position(ob,[query_position(ob)[0],query_position(ob)[1]-speed]);
+}
+
+function move_obstacle_down(ob,speed) {
+    debug_log("moving obstacles");
+    return update_position(ob,[query_position(ob)[0],query_position(ob)[1]+speed]);
+}
+
+function clearlevel3(){
+    update_position(player, [-700,-700]);
+    update_position(door, [-500, -500]);
+    for(let i=0;i<33;i=i+1){ // 0-32
+        update_scale(update_position(game_solids[i],[-500,-500]),[1,1]);
+    }
+    update_position(game_solids[32],[-500,-500]); // Ensure special block is reset
+    for(let i=0;i<30;i=i+1){ // 0-29
+        update_scale(update_color(update_position(game_traps[i],[-500,-500]),[255,0,0,255]),[1,1]);
+        
+    }
+    for(let i=0;i<5;i=i+1){
+        update_scale(update_position(game_through[i],[-500,-500]),[1,1]);
+    }
+    update_position(transportDoor,[-500,-500]);
+    update_position(update_text(collision_happened, ""),[-500,-500]);
+    objos_list=[];
+    objos_list_size=0;
+    on_object=false;
+    tryjump=false;
+    velocityY=0;
+    isCrouching=false;
+    alive=false;
+    trapSequence=0;
+    gameTime=0;
+}
+function initSelect() {
+    // Hide any lingering collision text
+    update_position(update_text(collision_happened, ""), [-500, -500]);
+    // Hide all Level 2 buttons and traps from main screen
+    update_position(button2_1, [-500, -500]);
+    update_position(button2_2, [-500, -500]);
+    update_position(button2_3, [-500, -500]);
+    update_position(button2_4, [-500, -500]);
+    update_position(button2_5, [-500, -500]);
+    update_position(trap2_1, [-500, -500]);
+    update_position(trap2_2, [-500, -500]);
+    update_position(traps2_1, [-500, -500]);
+    update_position(traps2_21, [-500, -500]);
+    update_position(traps2_22, [-500, -500]);
+    // Adjusted for [1000,600]
+    const LEVEL_CELL_WIDTH = 60;
+    const LEVEL_CELL_HEIGHT = 60;
+    const LEVEL_CELL_SPACING = 80; // increased spacing for wider screen
+    const START_X = 200; // moved right for centering
+    const START_Y = 200;
+    
+    let i = 0;
+    while (i < LEVEL_COUNT) {
+        const xPos = START_X + i * (LEVEL_CELL_WIDTH + LEVEL_CELL_SPACING);
+        // 创建关卡按钮
+        update_position(levelButtons[i],[xPos, START_Y]);
+        // 创建关卡文本
+        let textContent = "Level";
+        if (i === 0){
+            textContent = textContent + "1";}
+        if (i === 1) {
+            textContent = textContent + "2";}
+        if (i === 2) {
+            textContent = textContent + "3";}
+        if (i === 3) {
+            textContent = textContent + "4";}
+        if (i === 4) {
+            textContent = textContent + "5";}
+        update_text(update_scale(update_position(levelTexts[i], 
+            [xPos , START_Y + LEVEL_CELL_HEIGHT / 1.5]),
+            [1, 1]),
+            textContent
+        );
+        i = i + 1;
+    }
+    // Center title and hint for 1000 width
+    update_scale(update_position(titleText, [500, 100]),[3, 3]);
+    update_scale(update_position(hintText, [500, 500]),[1.5, 1.5]);
+    update_scale(update_position(levelDisplayText, [500, 300]),[4, 4]);
+    debug_log("Select screen initialized");
+}
+
+function clearselect(){
+    let i = 0;
+    while (i < LEVEL_COUNT) {
+        update_position(levelButtons[i],[-500,-500]);
+        update_position(levelTexts[i],[-500,-500]);
+        i = i + 1;
+    }
+    update_position(titleText,[-500,-500]);
+    update_position(hintText,[-500,-500]);
+    update_position(levelDisplayText,[-500,-500]);
+    debug_log("Select screen cleared");
+}
+
+function level2setup() {
+    // Place all objects in their starting positions
+    update_position(player2, [300, 250]);
+    update_scale(player2, [1, 1]);
+    update_color(player2, [255,255,255,255]); // player white
+    update_position(platform2, [500, 300]);
+    update_scale(platform2, [1, 1]);
+    update_color(platform2, [123,63,0,255]); // platform brown
+    update_position(obstacle2, [860, 150]);
+    update_scale(obstacle2, [1, 1]);
+    update_color(obstacle2, [123,63,0,255]); // obstacle brown
+    update_position(door2, [975, 270]);
+    update_scale(door2, [1, 1]);
+    update_color(door2, [255,255,255,255]); // door white
+    update_position(trap2_1, [10, 280]);
+    update_scale(trap2_1, [1, 1]);
+    update_color(trap2_1, [255,0,0,255]); // trap red
+    update_position(trap2_2, [535, 320]);
+    update_scale(trap2_2, [1, 1]);
+    update_color(trap2_2, [255,0,0,255]); // trap red
+    update_position(button2_1, [160, 320]);
+    update_scale(button2_1, [1, 1]);
+    update_color(button2_1, [0,0,255,255]); // button blue
+    update_position(button2_2, [350, 300]);
+    update_scale(button2_2, [1, 1]);
+    update_color(button2_2, [0,0,255,255]); // button blue
+    update_position(button2_3, [800, 300]);
+    update_scale(button2_3, [1, 1]);
+    update_color(button2_3, [0,0,255,255]); // button blue
+    update_position(button2_4, [350, 300]);
+    update_scale(button2_4, [1, 1]);
+    update_color(button2_4, [0,0,255,255]); // button blue
+    update_position(button2_5, [600, 300]);
+    update_scale(button2_5, [1, 1]);
+    update_color(button2_5, [0,0,255,255]); // button blue
+    update_position(block2_1, [938, 130]);
+    update_scale(block2_1, [1, 1]);
+    update_color(block2_1, [123,63,0,255]); // block brown
+    update_position(block2_2, [938, 100]);
+    update_scale(block2_2, [1, 1]);
+    update_color(block2_2, [123,63,0,255]); // block brown
+    update_position(block2_3, [938, 70]);
+    update_scale(block2_3, [1, 1]);
+    update_color(block2_3, [123,63,0,255]); // block brown
+    update_position(block2_4, [938, 10]);
+    update_scale(block2_4, [1, 1]);
+    update_color(block2_4, [123,63,0,255]); // block brown
+    update_position(block2_5, [938, 40]);
+    update_scale(block2_5, [1, 1]);
+    update_color(block2_5, [123,63,0,255]); // block brown
+    update_position(traps2_1, [317, 300]);
+    update_scale(traps2_1, [1, 1]);
+    update_color(traps2_1, [255,0,0,255]); // trap red
+    update_position(traps2_21, [633, 300]);
+    update_scale(traps2_21, [1, 1]);
+    update_color(traps2_21, [255,0,0,255]); // trap red
+    update_position(traps2_22, [567, 300]);
+    update_scale(traps2_22, [1, 1]);
+    update_color(traps2_22, [255,0,0,255]); // trap red
+    update_position(update_text(collision_happened, ""), [500, 300]);
+    update_scale(collision_happened, [2.5, 2.5]);
+    isUpsideDown2 = false;
+    velocityY2 = 0;
+    canJump2 = true;
+    trap2_1Touch = 0;
+    trap2_2Touch = 0;
+    button2_1Activated = false;
+    button2_2Activated = false;
+    button2_3Activated = false;
+    button2_4Activated = false;
+    button2_5Activated = false;
+    gameOver2 = false;
+    gameWon2 = false;
+}
+
+function clearlevel2() {
+    update_position(player2, [-700, -700]);
+    update_scale(player2, [1, 1]);
+    update_color(player2, [255,255,255,255]); // player white
+    update_position(platform2, [-500, -500]);
+    update_scale(platform2, [1, 1]);
+    update_color(platform2, [123,63,0,255]); // platform brown
+    update_position(obstacle2, [-500, -500]);
+    update_scale(obstacle2, [1, 1]);
+    update_color(obstacle2, [123,63,0,255]); // obstacle brown
+    update_position(door2, [-500, -500]);
+    update_scale(door2, [1, 1]);
+    update_color(door2, [255,255,255,255]); // door white
+    update_position(trap2_1, [-500, -500]);
+    update_scale(trap2_1, [1, 1]);
+    update_color(trap2_1, [255,0,0,255]); // trap red
+    update_position(trap2_2, [-500, -500]);
+    update_scale(trap2_2, [1, 1]);
+    update_color(trap2_2, [255,0,0,255]); // trap red
+    update_position(button2_1, [-500, -500]);
+    update_scale(button2_1, [1, 1]);
+    update_color(button2_1, [0,0,255,255]); // button blue
+    update_position(button2_2, [-500, -500]);
+    update_scale(button2_2, [1, 1]);
+    update_color(button2_2, [0,0,255,255]); // button blue
+    update_position(button2_3, [-500, -500]);
+    update_scale(button2_3, [1, 1]);
+    update_color(button2_3, [0,0,255,255]); // button blue
+    update_position(button2_4, [-500, -500]);
+    update_scale(button2_4, [1, 1]);
+    update_color(button2_4, [0,0,255,255]); // button blue
+    update_position(button2_5, [-500, -500]);
+    update_scale(button2_5, [1, 1]);
+    update_color(button2_5, [0,0,255,255]); // button blue
+    update_position(block2_1, [-500, -500]);
+    update_scale(block2_1, [1, 1]);
+    update_color(block2_1, [123,63,0,255]); // block brown
+    update_position(block2_2, [-500, -500]);
+    update_scale(block2_2, [1, 1]);
+    update_color(block2_2, [123,63,0,255]); // block brown
+    update_position(block2_3, [-500, -500]);
+    update_scale(block2_3, [1, 1]);
+    update_color(block2_3, [123,63,0,255]); // block brown
+    update_position(block2_4, [-500, -500]);
+    update_scale(block2_4, [1, 1]);
+    update_color(block2_4, [123,63,0,255]); // block brown
+    update_position(block2_5, [-500, -500]);
+    update_scale(block2_5, [1, 1]);
+    update_color(block2_5, [123,63,0,255]); // block brown
+    update_position(traps2_1, [-500, -500]);
+    update_scale(traps2_1, [1, 1]);
+    update_color(traps2_1, [255,0,0,255]); // trap red
+    update_position(traps2_21, [-500, -500]);
+    update_scale(traps2_21, [1, 1]);
+    update_color(traps2_21, [255,0,0,255]); // trap red
+    update_position(traps2_22, [-500, -500]);
+    update_scale(traps2_22, [1, 1]);
+    update_color(traps2_22, [255,0,0,255]); // trap red
+    // Ensure collision text is hidden and reset
+    update_position(update_text(collision_happened, ""), [-500, -500]);
+    update_scale(collision_happened, [2.5, 2.5]);
+    isUpsideDown2 = false;
+    velocityY2 = 0;
+    canJump2 = true;
+    trap2_1Touch = 0;
+    trap2_2Touch = 0;
+    button2_1Activated = false;
+    button2_2Activated = false;
+    button2_3Activated = false;
+    button2_4Activated = false;
+    button2_5Activated = false;
+    gameOver2 = false;
+    gameWon2 = false;
+}
+
+update_loop(game_state => {
+    debug_log("Current state: " + stringify(currentState));
+    // Level 3.5: Wait for user input after finishing level 3
+    if(currentState===3.5){
+        // Show 'Next level' message (already set)
+        if(input_key_down("r")){
+            clearlevel3();
+            level3setup();
+            currentState=3;
+        } else if(input_key_down("b")){
+            clearlevel3();
+            initSelect();
+            currentState="select";
+        } else if(input_key_down("n")){
+            clearlevel3();
+            clearlevel2();
+            level1setup();
+            currentState=1;
+        }
+    }
+    
+    if(currentState===3){
+        if (!alive){
+            if(input_key_down("b")){
+                currentState="select";
+                clearlevel3();
+                initSelect();
+            }
+            if(input_key_down("r")){
+                clearlevel3();
+                level3setup();
+                alive=true;
+            }
+        }
+        
+        //Player return to Select Screen
+        if(input_key_down("b")){
+            update_text(collision_happened, "");
+            currentState="select";
+            clearlevel3();
+            initSelect();
+        }
+        
+        if(input_key_down("r")){
+            clearlevel3();
+            level3setup();
+            alive=true;
+        }
+        
+        if(alive){
+            //Player jump
+           const playerPos = query_position(player);
+            if (input_key_down("a")) {
+                playerPos[0] = playerPos[0] - PLAYER_MOVE_SPEED;
+            }
+            if (input_key_down("d")) {
+                playerPos[0] = playerPos[0] + PLAYER_MOVE_SPEED;
+            }
+            if(!on_object){
+                velocityY = velocityY + GRAVITY;
+                playerPos[1] = playerPos[1] + velocityY;
+            }
+            if (input_key_down("w") && on_object && !isCrouching) {
+                tryjump = true;
+                velocityY = JUMP_FORCE;
+                on_object = false;
+            }
+           if (input_key_down("s") && on_object) {
+                if (!isCrouching) {
+                    update_scale(player, [1, 0.5]);
+                    playerPos[1] = playerPos[1] + PLAYER_HEIGHT/2;
+                    isCrouching = true;
+                }
+            } 
+            else if (isCrouching) {
+                update_scale(player, [1, 1]);
+                playerPos[1] = playerPos[1] - PLAYER_HEIGHT/2;
+                isCrouching = false;
+            }
+            debug_log("jump check");
+            debug_log("on_object check: "+stringify(on_object));
+            const currentPlayerHeight = isCrouching ? PLAYER_HEIGHT/2 : PLAYER_HEIGHT;
+            debug_log("trapSequence: "+stringify(trapSequence));
+            
+            //Moving Purple
+            if(trapSequence===0 && playerPos[0]>=120 && input_key_down("w")){
+                trapSequence=1;
+            }
+            if(trapSequence===1 && query_position(game_solids[32])[1]<=200){
+                trapSequence=2;
+            }
+            else if(trapSequence===1 && query_position(game_solids[32])[1]<=270){
+                update_position(game_solids[32],[query_position(game_solids[32])[0],query_position(game_solids[32])[1]-SPIKES_MOVE_SPEED/1.5]);
+            }
+            else if(trapSequence===1 && query_position(game_solids[32])[1]<=300){
+                update_position(game_traps[1],[query_position(game_traps[1])[0],query_position(game_traps[1])[1]+SPIKES_MOVE_SPEED]);
+                update_position(game_solids[32],[query_position(game_solids[32])[0],query_position(game_solids[32])[1]-SPIKES_MOVE_SPEED/1.5]);
+            }   
+            else if(trapSequence===1 && query_position(game_solids[32])[1]<=310){
+                update_position(game_traps[1],[255,-10]);
+                update_position(game_solids[32],[query_position(game_solids[32])[0],query_position(game_solids[32])[1]-SPIKES_MOVE_SPEED/1.5]);
+            }
+            else if(trapSequence===1){
+                update_position(game_solids[32],[query_position(game_solids[32])[0],query_position(game_solids[32])[1]-SPIKES_MOVE_SPEED/1.5]);
+            }
+            if (trapSequence === 2) {
+                // Check if player is on top of game_solids[8]
+                const solid8Pos = query_position(game_solids[8]);
+                const solid8Scale = query_scale(game_solids[8]);
+                // Check if player is on top (within X bounds and just above Y)
+                if (
+                    playerPos[0] + PLAYER_WIDTH/2 > solid8Pos[0] - 50 * solid8Scale[0] &&
+                    playerPos[0] - PLAYER_WIDTH/2 < solid8Pos[0] + 50 * solid8Scale[0] &&
+                    math_abs((playerPos[1] + PLAYER_HEIGHT/2) - (solid8Pos[1] - 50 * solid8Scale[1])) < 5
+                ) {
+                    // Place transportDoor hovering above game_solids[9]
+                    const solid9Pos = query_position(game_solids[9]);
+                    update_position(transportDoor, [solid9Pos[0], solid9Pos[1] - 30]);
+                }
+                // If player overlaps with transportDoor, teleport and advance sequence
+                if (gameobjects_overlap(player, transportDoor)) {
+                    // Place player underneath game_solids[2]
+                    trapSequence = 3;
+                }
+            }
+            if (trapSequence===3){
+                if(playerPos[1]<=100){
+                    const solid2Pos = query_position(game_solids[2]);
+                    update_position(player, [solid2Pos[0], solid2Pos[1] + 70]);
+                    update_position(transportDoor, [-500, -500]);
+                }
+            }
+            // Update GameObjects within update_loop(...)
+            let on_object_check=0;
+            debug_log("position of purple: "+stringify(query_position(game_solids[objos_list[10]])));
+            for (let i = 0; i < objos_list_size; i = i + 1) {
+                const ob = game_solids[objos_list[i]];
+                const ob_pos=query_position(ob);
+                if (!tryjump && (playerPos[1] + currentPlayerHeight/2 >= ob_pos[1]-50*query_scale(ob)[1]) && (playerPos[1] + currentPlayerHeight/2 - ob_pos[1]+50*query_scale(ob)[1]<= 50) && (playerPos[0] + PLAYER_WIDTH/2 > ob_pos[0]-50*query_scale(ob)[0]) && (playerPos[0] - PLAYER_WIDTH/2 < ob_pos[0]+50*query_scale(ob)[0])) {
+                    playerPos[1] = ob_pos[1] - 50*query_scale(ob)[1] - currentPlayerHeight/2;
+                    if(i===10){
+                        velocityY = JUMP_FORCE*1.3;
+                        on_object = false;
+                    }
+                    else{
+                        velocityY = 0;
+                        on_object = true;
+                        on_object_check=1;
+                    }
+                }
+                else if((playerPos[1] - currentPlayerHeight/2 <= ob_pos[1] + 50*query_scale(ob)[1]) && (playerPos[1] - currentPlayerHeight/2 - ob_pos[1] - 50*query_scale(ob)[1]>= -25) && (playerPos[0] + PLAYER_WIDTH/2 > ob_pos[0] - 50*query_scale(ob)[0]) && (playerPos[0] - PLAYER_WIDTH/2 < ob_pos[0] + 50*query_scale(ob)[0])){
+                    playerPos[1] =ob_pos[1] + 50*query_scale(ob)[1] + currentPlayerHeight/2;
+                    velocityY = 0;
+                    on_object=false;
+                }
+                if((playerPos[0] + PLAYER_WIDTH/2 >= ob_pos[0]-50*query_scale(ob)[0]) && (playerPos[0] + PLAYER_WIDTH/2 - ob_pos[0] + 50*query_scale(ob)[0] <= 25) && (playerPos[1] + currentPlayerHeight/2 > ob_pos[1] - 50*query_scale(ob)[1]) && (playerPos[1] - currentPlayerHeight/2 < ob_pos[1] +50*query_scale(ob)[1])){
+                    playerPos[0] = ob_pos[0] - 50*query_scale(ob)[0] - PLAYER_WIDTH/2;
+                }
+                else if((playerPos[0] - PLAYER_WIDTH/2 <= ob_pos[0]+50*query_scale(ob)[0]) && (playerPos[0] - PLAYER_WIDTH/2 - ob_pos[0] - 50*query_scale(ob)[0]>= -25) && (playerPos[1] + currentPlayerHeight/2 > ob_pos[1] - 50*query_scale(ob)[1]) && (playerPos[1] - currentPlayerHeight/2 < ob_pos[1] +50*query_scale(ob)[1])){
+                    playerPos[0] = ob_pos[0] + 50*query_scale(ob)[0] + PLAYER_WIDTH/2;
+                }
+            }
+            if(on_object_check!==1){
+                on_object_check=0;
+                on_object=false;
+            }
+            
+            update_position(player, playerPos); // Still update after push
+            if (tryjump) {
+                tryjump=false;
+            }
+            
+            for(let i=0;i<20;i=i+1){
+                if (gameobjects_overlap(player, game_traps[i])) {
+                    update_position(collision_happened, [500, 300]);
+                    update_text(collision_happened, "Game Over!");
+                    alive = false;
+                }
+            }
+            
+            if (gameobjects_overlap(player, door))
+            {
+                update_position(collision_happened, [500, 300]);
+                update_text(collision_happened, "Next level");
+                currentState=3.5;
+            }
+            
+            if(trapSequence===4){
+                const tdpos=query_position(transportDoor);
+                if(tdpos[0]>=700){
+                    //nothing
+                }
+                else if(tdpos[0]>=255){
+                    update_position(transportDoor, [tdpos[0]+SPIKES_MOVE_SPEED/1.35, 530]);
+                }
+                if(gameobjects_overlap(player,transportDoor)){
+                    update_position(player,[playerPos[0],playerPos[1]-300]);
+                    velocityY=0;
+                }
+            }
+            
+            if (trapSequence===3){
+                if(playerPos[1]<=100){
+                    const solid2Pos = query_position(game_solids[2]);
+                    update_position(player, [solid2Pos[0]-100, solid2Pos[1] + 50]);
+                    update_position(transportDoor, [255, 530]);
+                    trapSequence=4;
+                }
+            }
+            // Place blocks over traps if overlapping
+            for (let i = 0; i < 33; i=i+1) { // 33 game_solids
+                for (let j = 0; j < 30; j=j+1) { // 30 game_traps
+                    if (gameobjects_overlap(game_solids[i], game_traps[j])) {
+                        update_to_top(game_solids[i]);
+                    }
+                }
+            }
+            debug_log("game_solids[0] pos: "+stringify(query_position(game_solids[0])));
+            debug_log("game_solids[6] pos: "+stringify(query_position(game_solids[6])));
+            debug_log("door position: "+stringify(query_position(door)));
+           debug_log("player position:"+stringify(query_position(player)));
+        }
+    }
+
+    // Level 2.5: Wait for user input after finishing level 2
+    if(currentState===2.5){
+        // Show 'Next level' message (already set)
+        if(input_key_down("r")){
+            clearlevel2();
+            level2setup();
+            currentState=2;
+        } else if(input_key_down("b")){
+            clearlevel2();
+            initSelect();
+            currentState="select";
+        } else if(input_key_down("n")){
+            clearlevel2();
+            level3setup();
+            currentState=3;
+        }
+    }
+    
+    if(currentState===2){
+        if (gameOver2 || gameWon2) {
+            if(input_key_down("b")){
+                currentState="select";
+                clearlevel2();
+                initSelect();
+            }
+            if(input_key_down("r")){
+                clearlevel2();
+                level2setup();
+            }
+        }
+        //Player return to Select Screen
+        if(input_key_down("b")){
+            update_text(collision_happened, "");
+            currentState="select";
+            clearlevel2();
+            initSelect();
+        }
+        if(input_key_down("r")){
+            clearlevel2();
+            level2setup();
+        }
+        if(!(gameOver2 || gameWon2)){
+            // Level 2 main logic
+            const playerPos = query_position(player2);
+            const platformPos = query_position(platform2);
+            const obstaclePos = query_position(obstacle2);
+            const doorPos = query_position(door2);
+            const trap1Pos = query_position(trap2_1);
+            const trap2Pos = query_position(trap2_2);
+            const traps1Pos = query_position(traps2_1);
+            const traps21Pos = query_position(traps2_21);
+            const traps22Pos = query_position(traps2_22);
+            // Debug logs for all positions
+            debug_log("player2 pos: "+stringify(playerPos));
+            debug_log("platform2 pos: "+stringify(platformPos));
+            debug_log("obstacle2 pos: "+stringify(obstaclePos));
+            debug_log("door2 pos: "+stringify(doorPos));
+            debug_log("trap2_1 pos: "+stringify(trap1Pos));
+            debug_log("trap2_2 pos: "+stringify(trap2Pos));
+            debug_log("button2_1 pos: "+stringify(query_position(button2_1)));
+            debug_log("button2_2 pos: "+stringify(query_position(button2_2)));
+            debug_log("button2_3 pos: "+stringify(query_position(button2_3)));
+            debug_log("button2_4 pos: "+stringify(query_position(button2_4)));
+            debug_log("button2_5 pos: "+stringify(query_position(button2_5)));
+            debug_log("block2_1 pos: "+stringify(query_position(block2_1)));
+            debug_log("block2_2 pos: "+stringify(query_position(block2_2)));
+            debug_log("block2_3 pos: "+stringify(query_position(block2_3)));
+            debug_log("block2_4 pos: "+stringify(query_position(block2_4)));
+            debug_log("block2_5 pos: "+stringify(query_position(block2_5)));
+            debug_log("traps2_1 pos: "+stringify(traps1Pos));
+            debug_log("traps2_21 pos: "+stringify(traps21Pos));
+            debug_log("traps2_22 pos: "+stringify(traps22Pos));
+            // Win condition
+            if (gameobjects_overlap(player2, door2)) {
+                gameWon2 = true;
+                update_text(collision_happened, "Next level");
+                update_position(collision_happened, [500, 300]);
+                currentState = 2.5;
+            }
+            // Death condition
+            if (gameobjects_overlap(player2, trap2_1) || 
+                gameobjects_overlap(player2, trap2_2) ||
+                gameobjects_overlap(player2, traps2_1) ||
+                gameobjects_overlap(player2, traps2_21) ||
+                gameobjects_overlap(player2, traps2_22)) {
+                gameOver2 = true;
+                update_text(collision_happened, "Game Over!");
+                update_position(collision_happened, [500, 300]);
+            }
+            // Button logic
+            if (!button2_1Activated) {
+                const button1Pos = query_position(button2_1);
+                const isPlayerOnButton1 = (
+                    playerPos[0] > button1Pos[0] - 15 &&  
+                    playerPos[0] < button1Pos[0] + 15 && 
+                    playerPos[1] > button1Pos[1] - 20 &&  
+                    playerPos[1] < button1Pos[1] + 20     
+                );
+                if (isPlayerOnButton1) {
+                    button2_1Activated = true;  
+                    update_position(button2_1, [160, 300]);  
+                    update_position(button2_2, [350, 280]);
+                    update_position(block2_1, [1500, 100]); 
+                }
+            }
+            if (!button2_2Activated) {
+                const button2Pos = query_position(button2_2);
+                const isPlayerOnButton2 = (
+                    playerPos[0] > button2Pos[0] - 15 &&  
+                    playerPos[0] < button2Pos[0] + 15 && 
+                    playerPos[1] > button2Pos[1] - 20 &&  
+                    playerPos[1] < button2Pos[1] + 20     
+                );
+                if (isPlayerOnButton2) {
+                    button2_2Activated = true;  
+                    update_position(button2_3, [800, 320]);  
+                    update_position(button2_2, [350, 300]);
+                    update_position(block2_2, [1500, 100]); 
+                }
+            }
+            if (!button2_3Activated) {
+                const button3Pos = query_position(button2_3);
+                const isPlayerOnButton3 = (
+                    playerPos[0] > button3Pos[0] - 15 &&  
+                    playerPos[0] < button3Pos[0] + 15 && 
+                    playerPos[1] > button3Pos[1] - 20 &&  
+                    playerPos[1] < button3Pos[1] + 20     
+                );
+                if (isPlayerOnButton3) {
+                    button2_3Activated = true;  
+                    update_position(button2_3, [800, 300]); 
+                    update_position(button2_4, [350,280]);
+                    update_position(traps2_1,[387,280]);
+                    update_position(block2_3, [1500, 100]); 
+                }
+            }
+            if (!button2_4Activated) {
+                const button4Pos = query_position(button2_4);
+                const isPlayerOnButton4 = (
+                    playerPos[0] > button4Pos[0] - 15 &&  
+                    playerPos[0] < button4Pos[0] + 15 && 
+                    playerPos[1] > button4Pos[1] - 20 &&  
+                    playerPos[1] < button4Pos[1] + 20     
+                );
+                if (isPlayerOnButton4) {
+                    button2_4Activated = true;  
+                    update_position(button2_5, [600, 320]); 
+                    update_position(button2_4, [350,300]);
+                    update_position(block2_4, [1500, 100]); 
+                    update_position(traps2_21, [633,320]);
+                    update_position(traps2_22, [567,320]); 
+                }
+            }
+            if (!button2_5Activated) {
+                const button5Pos = query_position(button2_5);
+                const isPlayerOnButton5 = (
+                    playerPos[0] > button5Pos[0] - 15 &&  
+                    playerPos[0] < button5Pos[0] + 15 && 
+                    playerPos[1] > button5Pos[1] - 20 &&  
+                    playerPos[1] < button5Pos[1] + 20     
+                );
+                if (isPlayerOnButton5) {
+                    button2_5Activated = true;  
+                    update_position(button2_5, [600,300]);
+                    update_position(block2_5, [1500, 100]); 
+                }
+            }
+            // Trap 1 movement
+            if(trap2_1Touch%2===0)
+            {
+                trap1Pos[0]=trap1Pos[0]+TRAP2_SPEED;
+                if(trap1Pos[0]>=855)
+                {
+                    trap2_1Touch=trap2_1Touch+1;
+                }
+            }
+            else
+            {
+                trap1Pos[0]=trap1Pos[0]-TRAP2_SPEED;
+                if(trap1Pos[0]<=20)
+                {
+                    trap2_1Touch=trap2_1Touch+1;
+                }
+            }
+            update_position(trap2_1,trap1Pos);
+            // Trap 2 movement
+            if(trap2_2Touch%2===0)
+            {
+                trap2Pos[0]=trap2Pos[0]+TRAP2_SPEED;
+                if(trap2Pos[0]>=979)
+                {
+                    trap2_2Touch=trap2_2Touch+1;
+                }
+            }
+            else
+            {
+                trap2Pos[0]=trap2Pos[0]-TRAP2_SPEED;
+                if(trap2Pos[0]<=20)
+                {
+                    trap2_2Touch=trap2_2Touch+1;
+                }
+            }
+            update_position(trap2_2, trap2Pos);
+            // Gravity
+            velocityY2 = velocityY2 + (isUpsideDown2 ? -GRAVITY2 : GRAVITY2);
+            // Horizontal movement
+            // Predictive obstacle collision (like level 1/3)
+            let intendedX = playerPos[0];
+            if (input_key_down("a")) {
+                intendedX = playerPos[0] - PLAYER2_SPEED;
+            }
+            if (input_key_down("d")) {
+                intendedX = playerPos[0] + PLAYER2_SPEED;
+            }
+            // Obstacle bounds
+            const obsLeft = obstaclePos[0] - 30/2;
+            const obsRight = obstaclePos[0] + 30/2;
+            // If intendedX would overlap obstacle, clamp to edge
+            if (
+                intendedX + PLAYER2_WIDTH/2 > obsLeft &&
+                intendedX - PLAYER2_WIDTH/2 < obsRight &&
+                playerPos[1] + PLAYER2_HEIGHT/2 > obstaclePos[1] - 290/2 &&
+                playerPos[1] - PLAYER2_HEIGHT/2 < obstaclePos[1] + 290/2
+            ) {
+                if (playerPos[0] < obstaclePos[0]) {
+                    intendedX = obsLeft - PLAYER2_WIDTH/2;
+                } else {
+                    intendedX = obsRight + PLAYER2_WIDTH/2;
+                }
+            }
+            // Now update playerPos[0] to intendedX
+            playerPos[0] = intendedX;
+            // Jump
+            if (input_key_down("w") && canJump2) {
+                velocityY2 = isUpsideDown2 ? -JUMP2_FORCE : JUMP2_FORCE;
+                canJump2 = false;
+            }
+            // Vertical movement
+            playerPos[1] = playerPos[1] + velocityY2;
+            // Screen horizontal bounds
+            playerPos[0] = math_max(PLAYER2_WIDTH/2, math_min(1000 - PLAYER2_WIDTH/2, playerPos[0]));
+            // Vertical wrap
+            if (playerPos[1] > 600 + PLAYER2_HEIGHT/2) {
+                playerPos[1] = -PLAYER2_HEIGHT/2;
+            } else if (playerPos[1] < -PLAYER2_HEIGHT/2) {
+                playerPos[1] = 600 + PLAYER2_HEIGHT/2;
+            }
+            // Block collision for only the topmost block2_1 to block2_5 (like solids in level 1/3)
+            const blocks = [block2_1, block2_2, block2_3, block2_4, block2_5];
+            let topBlockIndex = -1;
+            let topBlockY = 10000;
+            let blockCountOnScreen = 0;
+            for (let i = 0; i < 5; i = i + 1) {
+                const blockPos = query_position(blocks[i]);
+                // Only consider blocks that are not offscreen
+                if (!(blockPos[0] <= -400 || blockPos[1] <= -400)) {
+                    blockCountOnScreen = blockCountOnScreen + 1;
+                    if (blockPos[1] < topBlockY) {
+                        topBlockY = blockPos[1];
+                        topBlockIndex = i;
+                    }
+                }
+            }
+            // Only make the topmost block solid if more than one block remains
+            if (blockCountOnScreen > 1 && topBlockIndex !== -1) {
+                const block = blocks[topBlockIndex];
+                const blockPos = query_position(block);
+                const blockScale = query_scale(block);
+                
+                // Top collision
+                if (
+                    playerPos[0] + PLAYER2_WIDTH/2 > blockPos[0] - 60 * blockScale[0] &&
+                    playerPos[0] - PLAYER2_WIDTH/2 < blockPos[0] + 60 * blockScale[0] &&
+                    playerPos[1] + PLAYER2_HEIGHT/2 >= blockPos[1] - 15 * blockScale[1] &&
+                    playerPos[1] + PLAYER2_HEIGHT/2 <= blockPos[1] - 15 * blockScale[1] + 10 &&
+                    velocityY2 > 0
+                ) {
+                    playerPos[1] = blockPos[1] - 15 * blockScale[1] - PLAYER2_HEIGHT/2;
+                    velocityY2 = 0;
+                    canJump2 = true;
+                    isUpsideDown2 = false;
+                    update_scale(player2, [1, 1]);
+                }
+                // Bottom collision (upside down)
+                else if (
+                    playerPos[0] + PLAYER2_WIDTH/2 > blockPos[0] - 60 * blockScale[0] &&
+                    playerPos[0] - PLAYER2_WIDTH/2 < blockPos[0] + 60 * blockScale[0] &&
+                    playerPos[1] - PLAYER2_HEIGHT/2 <= blockPos[1] + 15 * blockScale[1] &&
+                    playerPos[1] - PLAYER2_HEIGHT/2 >= blockPos[1] + 15 * blockScale[1] - 10 &&
+                    velocityY2 < 0
+                ) {
+                    playerPos[1] = blockPos[1] + 15 * blockScale[1] + PLAYER2_HEIGHT/2;
+                    velocityY2 = 0;
+                    canJump2 = true;
+                    isUpsideDown2 = true;
+                    update_scale(player2, [1, -1]);
+                }
+                // Left collision
+                if (
+                    playerPos[1] + PLAYER2_HEIGHT/2 > blockPos[1] - 15 * blockScale[1] &&
+                    playerPos[1] - PLAYER2_HEIGHT/2 < blockPos[1] + 15 * blockScale[1] &&
+                    playerPos[0] + PLAYER2_WIDTH/2 >= blockPos[0] - 60 * blockScale[0] &&
+                    playerPos[0] + PLAYER2_WIDTH/2 <= blockPos[0] - 60 * blockScale[0] + 10
+                ) {
+                    playerPos[0] = blockPos[0] - 60 * blockScale[0] - PLAYER2_WIDTH/2;
+                }
+                // Right collision
+                else if (
+                    playerPos[1] + PLAYER2_HEIGHT/2 > blockPos[1] - 15 * blockScale[1] &&
+                    playerPos[1] - PLAYER2_HEIGHT/2 < blockPos[1] + 15 * blockScale[1] &&
+                    playerPos[0] - PLAYER2_WIDTH/2 <= blockPos[0] + 60 * blockScale[0] &&
+                    playerPos[0] - PLAYER2_WIDTH/2 >= blockPos[0] + 60 * blockScale[0] - 10
+                ) {
+                    playerPos[0] = blockPos[0] + 60 * blockScale[0] + PLAYER2_WIDTH/2;
+                }
+            }
+            // Platform collision
+            const isHorizontallyOverlapping = 
+                playerPos[0] + PLAYER2_WIDTH/2 > platformPos[0] - PLATFORM2_WIDTH/2 &&
+                playerPos[0] - PLAYER2_WIDTH/2 < platformPos[0] + PLATFORM2_WIDTH/2;
+            // Platform top collision
+            if (isHorizontallyOverlapping && 
+                playerPos[1] + PLAYER2_HEIGHT/2 >= platformPos[1] - PLATFORM2_HEIGHT/2 &&
+                playerPos[1] + PLAYER2_HEIGHT/2 <= platformPos[1] - PLATFORM2_HEIGHT/2 + 10 &&
+                velocityY2 > 0) {
+                playerPos[1] = platformPos[1] - PLATFORM2_HEIGHT/2 - PLAYER2_HEIGHT/2;
+                velocityY2 = 0;
+                canJump2 = true;
+                isUpsideDown2 = false;
+                update_scale(player2, [1, 1]);
+            }
+            // Platform bottom collision (upside down)
+            else if (isHorizontallyOverlapping && 
+                     playerPos[1] - PLAYER2_HEIGHT/2 <= platformPos[1] + PLATFORM2_HEIGHT/2 &&
+                     playerPos[1] - PLAYER2_HEIGHT/2 >= platformPos[1] + PLATFORM2_HEIGHT/2 - 10 &&
+                     velocityY2 < 0) {
+                playerPos[1] = platformPos[1] + PLATFORM2_HEIGHT/2 + PLAYER2_HEIGHT/2;
+                velocityY2 = 0;
+                canJump2 = true;
+                isUpsideDown2 = true;
+                update_scale(player2, [1, -1]);
+            }
+            // State change - pass up through platform
+            else if (isUpsideDown2 && isHorizontallyOverlapping &&
+                     playerPos[1] + PLAYER2_HEIGHT/2 < platformPos[1] - PLATFORM2_HEIGHT/2 &&
+                     playerPos[1] + PLAYER2_HEIGHT/2 + velocityY2 >= platformPos[1] - PLATFORM2_HEIGHT/2) {
+                playerPos[1] = platformPos[1] - PLATFORM2_HEIGHT/2 - PLAYER2_HEIGHT/2;
+                velocityY2 = 0;
+                canJump2 = true;
+                isUpsideDown2 = false;
+                update_scale(player2, [1, 1]);
+            }
+            // State change - pass down through platform
+            else if (!isUpsideDown2 && isHorizontallyOverlapping &&
+                     playerPos[1] - PLAYER2_HEIGHT/2 > platformPos[1] + PLATFORM2_HEIGHT/2 &&
+                     playerPos[1] - PLAYER2_HEIGHT/2 + velocityY2 <= platformPos[1] + PLATFORM2_HEIGHT/2) {
+                playerPos[1] = platformPos[1] + PLATFORM2_HEIGHT/2 + PLAYER2_HEIGHT/2;
+                velocityY2 = 0;
+                canJump2 = true;
+                isUpsideDown2 = true;
+                update_scale(player2, [1, -1]);
+            }
+            update_position(player2, playerPos);
+        }
+    }
+
+    // Level 1.5: Wait for user input after finishing level 1
+    if(currentState===1.5){
+        // Show 'Next level' message (already set)
+        if(input_key_down("r")){
+            clearlevel1();
+            level1setup();
+            currentState=1;
+        } else if(input_key_down("b")){
+            clearlevel1();
+            initSelect();
+            currentState="select";
+        } else if(input_key_down("n")){
+            clearlevel1();
+            level2setup();
+            currentState=2;
+        }
+    }
+
+    if(currentState===1){
+        if (!alive)
+        {
+            if(input_key_down("b")){
+                currentState="select";
+                clearlevel1();
+                initSelect();
+            }
+            if(input_key_down("r")){
+                clearlevel1();
+                level1setup();
+                alive=true;
+            }
+        }
+        
+        //Player return to Select Screen
+        if(input_key_down("b")){
+            update_text(collision_happened, "");
+            currentState="select";
+            clearlevel1();
+            initSelect();
+        }
+        
+        if(input_key_down("r")){
+            clearlevel1();
+            level1setup();
+            alive=true;
+        }
+        
+        if(alive){
+            //Player jump
+           const playerPos = query_position(player);
+            if (input_key_down("a")) {
+                playerPos[0] = playerPos[0] - PLAYER_MOVE_SPEED;
+            }
+            if (input_key_down("d")) {
+                playerPos[0] = playerPos[0] + PLAYER_MOVE_SPEED;
+            }
+            if(!on_object){
+                velocityY = velocityY + GRAVITY;
+                playerPos[1] = playerPos[1] + velocityY;
+            }
+            if (input_key_down("w") && on_object && !isCrouching) {
+                tryjump = true;
+                velocityY = JUMP_FORCE;
+                on_object = false;
+            }
+           if (input_key_down("s") && on_object) {
+                if (!isCrouching) {
+                    update_scale(player, [1, 0.5]);
+                    playerPos[1] = playerPos[1] + PLAYER_HEIGHT/2;
+                    isCrouching = true;
+                }
+            } 
+            else if (isCrouching) {
+                update_scale(player, [1, 1]);
+                playerPos[1] = playerPos[1] - PLAYER_HEIGHT/2;
+                isCrouching = false;
+            }
+            debug_log("jump check");
+            debug_log("on_object check: "+stringify(on_object));
+            const currentPlayerHeight = isCrouching ? PLAYER_HEIGHT/2 : PLAYER_HEIGHT;
+           // Update GameObjects within update_loop(...)
+            debug_log("trapSequence: "+stringify(trapSequence));
+            //First Spike
+            // Stretched for new width: 100 * 1.67 ≈ 167
+            if (playerPos[0] >= 167 && input_key_down("d") && trapSequence === 0)
+            {
+                update_position(game_traps[0], [0, 305]);
+                trapSequence = trapSequence + 1;
+                gameTime = get_game_time();
+            }
+            
+            let spikesPos = query_position(game_traps[0]);
+            debug_log("trap 0 pos: "+stringify(spikesPos));
+            // Stretched: 300 * 1.67 ≈ 500
+            if (spikesPos[0]>=500 && spikesPos[1]>=340 && trapSequence === 1){
+                trapSequence=2;
+            }
+            else if(spikesPos[0]>=500 && trapSequence === 1){
+                update_position(game_traps[0], [spikesPos[0], spikesPos[1]+SPIKES_MOVE_SPEED*2]);
+            }
+            else if (trapSequence === 1)
+            {
+                update_position(game_traps[0], [spikesPos[0] + SPIKES_MOVE_SPEED, spikesPos[1]]);
+            }
+            
+            //Second Spike
+            // Stretched: 350 * 1.67 ≈ 583, 420 * 1.67 ≈ 700
+            if (playerPos[0] >= 583 && input_key_down("d") && trapSequence === 2)
+            {
+                update_position(game_traps[1], [700, 335]);
+                trapSequence = trapSequence + 1;
+                gameTime = get_game_time();
+            }
+        
+            spikesPos = query_position(game_traps[1]);
+            debug_log("trap 1 pos: "+stringify(spikesPos));
+            // Stretched: 115 * 1.67 ≈ 192
+            if (spikesPos[0]<=210 && spikesPos[1]>=340 && trapSequence === 4){
+                trapSequence=5;
+            }
+            else if(spikesPos[0]<=210 && trapSequence === 4 && get_game_time() - gameTime>=500){
+                update_position(game_traps[1], [spikesPos[0], spikesPos[1]+SPIKES_MOVE_SPEED]);
+                update_position(game_traps[0], [query_position(game_traps[0])[0]-SPIKES_MOVE_SPEED*2, 305]);
+            }
+            else if(spikesPos[0]<=210 && trapSequence === 3){
+                //nothing
+            }
+            else if (get_game_time() - gameTime >= 1000 && trapSequence === 3)
+            {
+                update_position(game_traps[1], [spikesPos[0] - SPIKES_MOVE_SPEED*1.25, spikesPos[1]]);
+            }
+            else if (get_game_time() - gameTime >100 && trapSequence === 3){
+                //nothing
+            }
+            else if (get_game_time() - gameTime >0 && trapSequence === 3){
+                update_position(game_traps[1], [spikesPos[0], spikesPos[1]-SPIKES_MOVE_SPEED]);
+            }
+            // Stretched: 150 * 1.67 ≈ 250, 300 * 1.67 ≈ 500, 20 * 1.67 ≈ 33
+            if(spikesPos[0]<=250 && trapSequence === 3 && query_position(game_traps[0])[0]>=500){
+                update_position(game_traps[0], [0, 305]);
+            }
+            else if(spikesPos[0]<=250 && trapSequence === 3 && query_position(game_traps[0])[0]<33){
+                update_position(game_traps[0], [query_position(game_traps[0])[0]+SPIKES_MOVE_SPEED, 305]);
+            }
+            else if(spikesPos[0]<=250 && trapSequence === 3 && query_position(game_traps[0])[0]>=33){
+                gameTime=get_game_time();
+                trapSequence=4;
+            }
+            
+            //Above Spikes
+            // Stretched: 300 * 1.67 ≈ 500
+            if(playerPos[0]>=500 && trapSequence===5){
+                for(let i=2;i<22;i=i+1){
+                    // Spread 20 traps across the longer hallway
+                    update_position(game_traps[i],[75+45*(i-2),264]);
+                }
+                gameTime=get_game_time();
+                trapSequence=6;
+            }
+            if(trapSequence===6){
+                for(let i=2;i<22;i=i+1){
+                    if(get_game_time()-gameTime>=100*(i-2) && get_game_time()-gameTime<=100*(i-1)){
+                        update_position(game_traps[i],[query_position(game_traps[i])[0],query_position(game_traps[i])[1]+SPIKES_MOVE_SPEED]);
+                    }
+                }
+            }
+            if(trapSequence===6 && get_game_time()-gameTime>=2000){ // increased from 1300 for longer hallway
+                trapSequence=7;
+            }
+            //Transport Door
+            if(trapSequence===7){
+                gameTime=get_game_time();
+                trapSequence=8;
+            }
+            // Stretched: 100 * 1.67 ≈ 167
+            if(trapSequence === 8 && get_game_time()-gameTime>150){ // slightly increased for pacing
+                trapSequence=9;
+                if(playerPos[0]<167){
+                    update_position(transportDoor,[-500,-500]);
+                }
+            }
+            else if(trapSequence===8){
+                 for(let i=2;i<22;i=i+1){ // Spread 20 traps across the longer hallway
+                    update_position(game_traps[i],[query_position(game_traps[i])[0],query_position(game_traps[i])[1]-SPIKES_MOVE_SPEED]);
+                }
+                if(query_position(game_traps[10])[1]!==265){
+                    update_position(transportDoor,[820,300]); // moved further right
+                }
+            }
+            
+            //Changing Door positiion
+            // Stretched: 650 * 1.67 ≈ 1085, 500 * 1.67 ≈ 833, 555 * 1.67 ≈ 925, 100 * 1.67 ≈ 167
+            // Only allow the door to move if player has run back past the transport door spawn (x > 820)
+            if(trapSequence===10 && query_position(door)[0]>=1085){
+                update_position(door,[-50,305]);
+                trapSequence=11;
+            }
+            else if(trapSequence===10){
+                update_position(door,[query_position(door)[0]+SPIKES_MOVE_SPEED,305]);
+            }
+            if(trapSequence===9 && playerPos[0]>840){
+                trapSequence=10;
+            }
+            if(trapSequence===11 && query_position(door)[0]<=167){
+                update_position(door,[query_position(door)[0]+SPIKES_MOVE_SPEED,305]);
+            }
+            if(trapSequence===11 && query_position(door)[0]>167){
+                trapSequence=12;
+                for(let i=1;i<8;i=i+1){
+                    update_position(game_traps[i],[-500,-500]);
+                }
+            }
+            
+            //Changing Door, Floor, and Ceiling Position
+            // Stretched: 50 * 1.67 ≈ 83, 165 * 1.67 ≈ 275, 75 * 1.67 ≈ 125, 175 * 1.67 ≈ 292
+            if(trapSequence===12 && query_position(door)[0]>83 && playerPos[0]<275 && input_key_down("a")){
+                trapSequence=13;
+            }
+            if(trapSequence===13 && query_position(door)[0]>83){
+                update_position(door,[query_position(door)[0]-SPIKES_MOVE_SPEED,305]);
+                update_position(game_solids[11],[query_position(game_solids[11])[0]-SPIKES_MOVE_SPEED/1.35,query_position(game_solids[11])[1]]);
+                update_position(game_solids[0],[query_position(game_solids[0])[0],query_position(game_solids[0])[1]-SPIKES_MOVE_SPEED]);
+                update_position(game_solids[1],[query_position(game_solids[1])[0],query_position(game_solids[1])[1]-SPIKES_MOVE_SPEED]);
+                update_position(game_solids[2],[query_position(game_solids[2])[0],query_position(game_solids[2])[1]-SPIKES_MOVE_SPEED]);
+            }
+            
+            let on_object_check=0;
+            for (let i = 0; i < objos_list_size; i = i + 1) {
+                const ob = game_solids[objos_list[i]];
+                const ob_pos=query_position(ob);
+                if (!tryjump && (playerPos[1] + currentPlayerHeight/2 >= ob_pos[1]-50) && (playerPos[1] + currentPlayerHeight/2 - ob_pos[1] + 50<= 25) && (playerPos[0] + PLAYER_WIDTH/2 > ob_pos[0]-50) && (playerPos[0] - PLAYER_WIDTH/2 < ob_pos[0]+50)) {
+                    playerPos[1] = ob_pos[1] - 50 - currentPlayerHeight/2;
+                    velocityY = 0;
+                    on_object = true;
+                    on_object_check=1;
+                }
+                else if((playerPos[1] - currentPlayerHeight/2 <= ob_pos[1]+50) && (playerPos[1] - currentPlayerHeight/2 - ob_pos[1] - 50>= -25) && (playerPos[0] + PLAYER_WIDTH/2 > ob_pos[0]-50) && (playerPos[0] - PLAYER_WIDTH/2 < ob_pos[0]+50)){
+                    playerPos[1] = ob_pos[1] + 50 + currentPlayerHeight/2;
+                    velocityY = 0;
+                    on_object=false;
+                }
+                if((playerPos[0] + PLAYER_WIDTH/2 >= ob_pos[0]-50) && (playerPos[0] + PLAYER_WIDTH/2 - ob_pos[0] + 50 <= 25) && (playerPos[1] + currentPlayerHeight/2 > ob_pos[1] - 50) && (playerPos[1] - currentPlayerHeight/2 < ob_pos[1] +50)){
+                    playerPos[0] = ob_pos[0] - 50 - PLAYER_WIDTH/2;
+                }
+                else if((playerPos[0] - PLAYER_WIDTH/2 <= ob_pos[0]+50) && (playerPos[0] - PLAYER_WIDTH/2 - ob_pos[0] - 50>= -25) && (playerPos[1] + currentPlayerHeight/2 > ob_pos[1] - 50) && (playerPos[1] - currentPlayerHeight/2 < ob_pos[1] +50)){
+                    playerPos[0] = ob_pos[0] + 50 + PLAYER_WIDTH/2;
+                }
+            }
+            if(on_object_check!==1){
+                on_object_check=0;
+                on_object=false;
+            }
+            //Getting Ready for next loop
+            if (gameobjects_overlap(player, transportDoor))
+            {
+                playerPos[0] = 70;
+                playerPos[1] = 300;
+            }
+            
+            update_position(player, playerPos); // Still update after push
+            if (tryjump) {
+                tryjump=false;
+            }
+            
+            for(let i=0;i<20;i=i+1){
+                if (gameobjects_overlap(player, game_traps[i])) {
+                    update_position(collision_happened, [500, 300]);
+                    update_text(collision_happened, "Game Over!");
+                    alive = false;
+                }
+            }
+            
+            if (gameobjects_overlap(player, door))
+            {
+                update_position(collision_happened, [500, 300]);
+                update_text(collision_happened, "Next level");
+                currentState=1.5;
+            }
+            
+            // Place blocks over traps if overlapping
+            for (let i = 0; i < 33; i=i+1) { // 33 game_solids
+                for (let j = 0; j < 30; j=j+1) { // 30 game_traps
+                    if (gameobjects_overlap(game_solids[i], game_traps[j])) {
+                        update_to_top(game_solids[i]);
+                    }
+                }
+            }
+            debug_log("game_solids[0] pos: "+stringify(query_position(game_solids[0])));
+            debug_log("game_solids[6] pos: "+stringify(query_position(game_solids[6])));
+            debug_log("door position: "+stringify(query_position(door)));
+           debug_log("player position:"+stringify(query_position(player)));
+        }
+    }
+    
+    if(currentState==="select"){
+        initSelect();
+        if(input_key_down("1")){
+            currentState=1;
+            clearselect();
+            level1setup();
+            debug_log("level 1 generated");
+        }
+        else if(input_key_down("2")){
+            currentState=2;
+            clearselect();
+            level2setup();
+        }
+        else if(input_key_down("3")){
+            currentState=3;
+            clearselect();
+            level3setup();
+        }
+        else if(input_key_down("4")){
+            currentState=4;
+            clearselect();
+            level1setup();
+        }
+        else if(input_key_down("5")){
+            currentState=5;
+            clearselect();
+            level1setup();
+        }
+    }
+    
+});
+build_game();
