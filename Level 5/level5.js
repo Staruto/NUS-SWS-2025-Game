@@ -7,7 +7,8 @@ import {
 //enable_debug();
 
 set_dimensions([1000, 600]);
-const background = update_color(create_rectangle(2000, 2000), [255, 0, 0, 255]);
+const background_color = [205, 118, 71, 255];
+const background = update_color(create_rectangle(2000, 2000), background_color);
 
 // Button parameters
 const NUM_BUTTONS = 6;
@@ -87,7 +88,8 @@ function get_all_shakable_objects() {
 }
 
 // Door
-const door = create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/main/Assets/Door.jpg");
+//const door = create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/main/Assets/Door.jpg");
+const door = update_scale(create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/main/Assets/Door.png"), [0.2, 0.2]);
 let door_base_pos = [920, 275];
 update_position(door, door_base_pos);
 let door_move_phase = "idle"; // "idle" | "exit_right" | "appear_left" | "move_right_to_target" | "last"
@@ -115,10 +117,11 @@ let player_base_pos = [70, 280];
 let alive = true;
 
 // Ground
-const ground = create_rectangle(1200, 400);
+const ground_color = [45, 21, 9, 255];
+const ground = update_color(create_rectangle(1200, 400), ground_color);
 update_position(ground, [500, 500]);
 
-const text = update_color(update_position(create_text(""), [500, 400]), [0, 0, 0, 255]);
+const text = update_position(create_text(""), [500, 400]);
 
 
 update_loop(game_state => {
@@ -257,7 +260,7 @@ update_loop(game_state => {
             end_anim = false;
             update_text(text, "Level Complete!");
             alive = false;
-        } 
+        }
     }
 });
 
