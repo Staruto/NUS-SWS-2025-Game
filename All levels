@@ -335,8 +335,8 @@ function initSelect() {
     // Adjusted for [1000,600]
     const LEVEL_CELL_WIDTH = 60;
     const LEVEL_CELL_HEIGHT = 60;
-    const LEVEL_CELL_SPACING = 80; // increased spacing for wider screen
-    const START_X = 200; // moved right for centering
+    const LEVEL_CELL_SPACING = 60; // increased spacing for wider screen
+    const START_X = 140; // moved right for centering
     const START_Y = 200;
     
     let i = 0;
@@ -344,6 +344,7 @@ function initSelect() {
         const xPos = START_X + i * (LEVEL_CELL_WIDTH + LEVEL_CELL_SPACING);
         // 创建关卡按钮
         update_position(levelButtons[i],[xPos, START_Y]);
+        update_color(levelButtons[i], [255,255,255,255]); // ensure white
         // 创建关卡文本
         let textContent = "Level";
         if (i === 0){
@@ -1742,10 +1743,10 @@ update_loop(game_state => {
                     on_object=false;
                 }
                 if((playerPos[0] + PLAYER_WIDTH/2 >= ob_pos[0]-50*query_scale(ob)[0]) && (playerPos[0] + PLAYER_WIDTH/2 - ob_pos[0] + 50*query_scale(ob)[0] <= 25) && (playerPos[1] + currentPlayerHeight/2 > ob_pos[1] - 50*query_scale(ob)[1]) && (playerPos[1] - currentPlayerHeight/2 < ob_pos[1] +50*query_scale(ob)[1])){
-                    playerPos[0] = ob_pos[0] - 50*query_scale(ob)[0] - PLAYER_WIDTH/2;
+                    playerPos[0] = ob_pos[0] - 50*query_scale(ob)[0] - PLAYER_WIDTH*query_scale(player)[0]/2;
                 }
-                else if((playerPos[0] - PLAYER_WIDTH/2 <= ob_pos[0]+50*query_scale(ob)[0]) && (playerPos[0] - PLAYER_WIDTH/2 - ob_pos[0] - 50*query_scale(ob)[0]>= -25) && (playerPos[1] + currentPlayerHeight/2 > ob_pos[1] - 50*query_scale(ob)[1]) && (playerPos[1] - currentPlayerHeight/2 < ob_pos[1] +50*query_scale(ob)[1])){
-                    playerPos[0] = ob_pos[0] + 50*query_scale(ob)[0] + PLAYER_WIDTH/2;
+                else if((playerPos[0] - PLAYER_WIDTH*query_scale(player)[0]/2 <= ob_pos[0]+50*query_scale(ob)[0]) && (playerPos[0] - PLAYER_WIDTH/2 - ob_pos[0] - 50*query_scale(ob)[0]>= -25) && (playerPos[1] + currentPlayerHeight/2 > ob_pos[1] - 50*query_scale(ob)[1]) && (playerPos[1] - currentPlayerHeight/2 < ob_pos[1] +50*query_scale(ob)[1])){
+                    playerPos[0] = ob_pos[0] + 50*query_scale(ob)[0] + PLAYER_WIDTH*query_scale(player)[0]/2;
                 }
             }
             if(on_object_check!==1){
