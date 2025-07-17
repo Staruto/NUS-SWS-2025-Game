@@ -1,4 +1,3 @@
-
 import{
     set_dimensions, create_rectangle, create_sprite, create_text,
     query_position, query_scale, update_color, update_position, update_scale,
@@ -7,7 +6,7 @@ import{
     create_audio, loop_audio, stop_audio, play_audio, get_game_time, create_circle
 } from "arcade_2d";
 
-enable_debug();
+//enable_debug();
 
 // 一：设置画布、定义常量
 set_dimensions([1000,630]);
@@ -297,7 +296,7 @@ update_loop(game_state => {
             trapSequence=13;
         }
         
-        if(trapSequence===13 && get_game_time()-gametime>=500){ // Fixed: comparison
+        if(trapSequence===13 && get_game_time()-gametime>=300){ // Fixed: comparison
             update_position(solid[8],[x(solid[8]),y(solid[8])+fallingV]);
         }
         
@@ -366,9 +365,9 @@ update_loop(game_state => {
             // Re-initialize velocities for death animation (Y always upward)
             for(let i=1;i<=12;i=i+1){
                 piecesVX[i]=(math_random() -0.5)*30;
-                piecesVY[i]= -math_random()*30; // always upward
+                piecesVY[i]= (math_random()-1.5)*30; // always upward
             }
-            update_position(pieces[1],[playerPos[0]-3.5,playerPos[1]-100-15]);
+            update_position(pieces[1],[playerPos[0]-3.5,playerPos[1]-15]);
             update_position(pieces[2],[playerPos[0]+2.5,playerPos[1]-9]);
             update_position(pieces[3],[playerPos[0]-4,playerPos[1]-13]);
             update_position(pieces[4],[playerPos[0],playerPos[1]-5]);
@@ -380,6 +379,7 @@ update_loop(game_state => {
             update_position(pieces[10],[playerPos[0]-2,playerPos[1]+4]);
             update_position(pieces[11],[playerPos[0]+3.5,playerPos[1]+10]);
             update_position(pieces[12],[playerPos[0]+3.5,playerPos[1]+14.5]);
+            update_position(player,[-100,-100]);
         }
     }else{
         // Restart level when 'r' is pressed
@@ -419,61 +419,65 @@ update_loop(game_state => {
                 pisPos[j][1]=pisPos[j][1]+piecesVY[j];
             }
 
+            pisPos[j][0]=pisPos[j][0]+piecesVX[j];
+        
             pis_on_obj[j] = 0;
-            let on_object_check= 0;
+         //   let on_object_check = 0;
             for (let i = 0; i < array_length(solid); i = i + 1) {
                 const objPos = query_position(solid[i]);
                 const objW = ws[i];
                 const objH = hs[i];
-                // Top collision (player lands on solid)
-                if (!pis_on_obj[j] && piecesVY[j] >= 0 &&
-                    (pisPos[j][1] + pis_H[j]/2 >= objPos[1] - objH/2) &&
+                // Top collision 
+                if (piecesVY[j] >= 0 &&
+                    (pisPos[j][1] + pis_H[j]/2>= objPos[1] - objH/2) &&
                     (pisPos[j][1] + pis_H[j]/2 <= objPos[1] - objH/2 + 50) &&
                     (pisPos[j][0] + pis_W[j]/2 > objPos[0] - objW/2) &&
                     (pisPos[j][0] - pis_W[j]/2 < objPos[0] + objW/2)) {
-                    pisPos[j][1] = objPos[1] - objH/2 - pis_H/2;
+                    pisPos[j][1] = objPos[1] - objH/2 - pis_H[j]/2;
                     piecesVY[j] = 0;
-                    pis_on_obj = 1;
-                    on_object_check = 1;
+                    pis_on_obj[j] = 1;
+                 //   on_object_check = 1;
                 }
-                // Bottom collision (player jumps and hits bottom of solid)
+                // Bottom collision 
                 else if (piecesVY[j] < 0 &&
                     (pisPos[j][1] - pis_H[j]/2 <= objPos[1] + objH/2) &&
                     (pisPos[j][1] - pis_H[j]/2 >= objPos[1] + objH/2 - 50) &&
                     (pisPos[j][0] + pis_W[j]/2 > objPos[0] - objW/2) &&
                     (pisPos[j][0] - pis_W[j]/2 < objPos[0] + objW/2)) {
-                    pisPos[j][1] = objPos[1] + objH/2 + pis_H/2;
+                    pisPos[j][1] = objPos[1] + objH/2 + pis_H[j]/2;
                     piecesVY[j] = 0;
                 }
-                // Left collision (player runs into right side of solid)
+                // Left collision 
                 if (
                     (pisPos[j][0] + pis_W[j]/2 >= objPos[0] - objW/2) &&
-                    (pisPos[j][0] + pis_W[j]/2 <= objPos[0] - objW/2 + 20) &&
+                    (pisPos[j][0] + pis_W[j]/2 <= objPos[0] - objW/2 + 50) &&
                     (pisPos[j][1] + pis_H[j]/2 > objPos[1] - objH/2) &&
                     (pisPos[j][1] - pis_H[j]/2 < objPos[1] + objH/2)
                 ) {
-                    pisPos[j][0] = objPos[0] - objW/2 - pis_W/2;
+                    pisPos[j][0] = objPos[0] - objW/2 - pis_W[j]/2;
+                    piecesVX[j]= -piecesVX[j]*0.5;
                 }
-                // Right collision (player runs into left side of solid)
+                // Right collision 
                 else if (
-                    (pisPos[0] - pis_W[j]/2 <= objPos[0] + objW/2) &&
-                    (pisPos[0] - pis_W[j]/2 >= objPos[0] + objW/2 - 40) &&
-                    (pisPos[1] + pis_H[j]/2 > objPos[1] - objH/2) &&
-                    (pisPos[1] - pis_H[j]/2 < objPos[1] + objH/2)
+                    (pisPos[j][0] - pis_W[j]/2 <= objPos[0] + objW/2) &&
+                    (pisPos[j][0] - pis_W[j]/2 >= objPos[0] + objW/2 - 50) &&
+                    (pisPos[j][1] + pis_H[j]/2 > objPos[1] - objH/2) &&
+                    (pisPos[j][1] - pis_H[j]/2 < objPos[1] + objH/2)
                 ) {
-                    pisPos[0] = objPos[0] + objW/2 + pis_W/2;
+                    pisPos[j][0] = objPos[0] + objW/2 + pis_W[j]/2;
+                    piecesVX[j]= -piecesVX[j]*0.5;
                 }
             }
-            if(on_object_check[j] !== 1){
-                pis_on_obj[j] = 0;
-            }
+            // if(on_object_check[j] !== 1){
+            //     pis_on_obj[j] = 0;
+            // }
             update_position(pieces[j],pisPos[j]);
         }
         alive=false;
     }    
     
     debug_log("Player position: " + stringify(playerPos));
-    debug_log("piece 1 position: " + stringify(x(pieces[1]))+stringify(y(pieces[1])));
+    debug_log("piece 1 position: " + "["+stringify(x(pieces[1]))+","+stringify(y(pieces[1]))+"]");
     debug_log("On object: " + stringify(on_obj));
     debug_log("trap 1"+stringify(query_position(solid[2])));
 });
