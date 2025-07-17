@@ -50,7 +50,7 @@ for(let i=1;i<=12;i=i+1){
 
 let piecesVY = []; 
 for(let i=1;i<=12;i=i+1){
-    piecesVY[i]=(math_random()-1.5)*30;
+    piecesVY[i]=(math_random()-0.5)*30;
 }
 
 let pis_on_obj=[];
@@ -363,6 +363,11 @@ update_loop(game_state => {
         
         if(playerPos[1]>=600){
             alive=false;
+            // Re-initialize velocities for death animation (Y always upward)
+            for(let i=1;i<=12;i=i+1){
+                piecesVX[i]=(math_random() -0.5)*30;
+                piecesVY[i]= -math_random()*30; // always upward
+            }
             update_position(pieces[1],[playerPos[0]-3.5,playerPos[1]-100-15]);
             update_position(pieces[2],[playerPos[0]+2.5,playerPos[1]-9]);
             update_position(pieces[3],[playerPos[0]-4,playerPos[1]-13]);
@@ -377,6 +382,34 @@ update_loop(game_state => {
             update_position(pieces[12],[playerPos[0]+3.5,playerPos[1]+14.5]);
         }
     }else{
+        // Restart level when 'r' is pressed
+        if(input_key_down("r")){
+            alive = true;
+            update_position(player, [100, 229]); // Reset player position
+            vY = 0;
+            on_obj = false;
+            trapSequence = 0;
+            recoverSequence = -1;
+            gametime = 0;
+            
+            // Reset all solids to their original positions
+            update_position(solid[2], [134, 348]); // trap 1
+            update_position(solid[3], [212, 348]); // push 1
+            update_position(solid[5], [313, 348]); // trap 2
+            update_position(solid[6], [421, 346]); // push 2
+            update_position(solid[8], [664, 348]); // trap 3
+            update_position(solid[9], [768, 326]); // block
+            update_position(solid[10], [717, 348]); // trap 4
+            update_position(solid[12], [918, 348]); // trap 5
+            update_position(door, [918, 226]); // door
+            
+            // Hide all pieces
+            for(let j = 1; j <= 12; j = j + 1){
+                update_position(pieces[j], [-100, -100]);
+            }
+            return undefined;
+        }
+        
         let pisPos=[];
         for(let j=1;j<=12;j=j+1){
             pisPos[j]=query_position(pieces[j]);
@@ -396,8 +429,8 @@ update_loop(game_state => {
                 if (!pis_on_obj[j] && piecesVY[j] >= 0 &&
                     (pisPos[j][1] + pis_H[j]/2 >= objPos[1] - objH/2) &&
                     (pisPos[j][1] + pis_H[j]/2 <= objPos[1] - objH/2 + 50) &&
-                    (pisPos[j][0] + pis_W/2 > objPos[0] - objW/2) &&
-                    (pisPos[j][0] - pis_W/2 < objPos[0] + objW/2)) {
+                    (pisPos[j][0] + pis_W[j]/2 > objPos[0] - objW/2) &&
+                    (pisPos[j][0] - pis_W[j]/2 < objPos[0] + objW/2)) {
                     pisPos[j][1] = objPos[1] - objH/2 - pis_H/2;
                     piecesVY[j] = 0;
                     pis_on_obj = 1;
@@ -434,7 +467,7 @@ update_loop(game_state => {
             if(on_object_check[j] !== 1){
                 pis_on_obj[j] = 0;
             }
-            
+            update_position(pieces[j],pisPos[j]);
         }
         alive=false;
     }    
