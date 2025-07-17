@@ -1,0 +1,449 @@
+
+import{
+    set_dimensions, create_rectangle, create_sprite, create_text,
+    query_position, query_scale, update_color, update_position, update_scale,
+    update_text, update_to_top, set_fps, get_loop_count, enable_debug,
+    debug_log, input_key_down, gameobjects_overlap, update_loop, build_game, 
+    create_audio, loop_audio, stop_audio, play_audio, get_game_time, create_circle
+} from "arcade_2d";
+
+enable_debug();
+
+// 一：设置画布、定义常量
+set_dimensions([1000,630]);
+const background=update_position(update_color(create_rectangle(1000,600),[205,118,71,255]),[500,300]);
+
+const GRAVITY=2;        
+const JUMP_FORCE=-15;
+
+// 玩家相关
+const P_WIDTH = 12;
+const P_HEIGHT = 34;
+
+const P_MOVE_V=4;
+
+const player= update_position(create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/level-2/static.png"),[100,229]);
+
+// Death Animation
+const pieces=[];
+pieces[0]=update_position(create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/main/death/static.png"),[-100,-100]);
+pieces[1]=update_position(create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/main/death/static%20pieces%20-(1).png"),[-100,-100]);
+pieces[2]=update_position(create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/main/death/static%20pieces%20-(2).png"),[-100,-100]);
+pieces[3]=update_position(create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/main/death/static%20pieces%20-(3).png"),[-100,-100]);
+pieces[4]=update_position(create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/main/death/static%20pieces%20-(4).png"),[-100,-100]);
+pieces[5]=update_position(create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/main/death/static%20pieces%20-(5).png"),[-100,-100]);
+pieces[6]=update_position(create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/main/death/static%20pieces%20-(6).png"),[-100,-100]);
+pieces[7]=update_position(create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/main/death/static%20pieces%20-(7).png"),[-100,-100]);
+pieces[8]=update_position(create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/main/death/static%20pieces%20-(8).png"),[-100,-100]);
+pieces[9]=update_position(create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/main/death/static%20pieces%20-(9).png"),[-100,-100]);
+pieces[10]=update_position(create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/main/death/static%20pieces%20-(10).png"),[-100,-100]);
+pieces[11]=update_position(create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/main/death/static%20pieces%20-(11).png"),[-100,-100]);
+pieces[12]=update_position(create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/main/death/static%20pieces%20-(12).png"),[-100,-100]);
+
+const pis_W=[12,5,7,4,6,4,5,8,2,6,8,5,5];
+const pis_H=[34,4,8,12,11,10,16,11,5,8,5,9,5];
+
+let piecesVX = []; 
+for(let i=1;i<=12;i=i+1){
+    piecesVX[i]=(math_random() -0.5)*30;
+}
+
+let piecesVY = []; 
+for(let i=1;i<=12;i=i+1){
+    piecesVY[i]=(math_random()-1.5)*30;
+}
+
+let pis_on_obj=[];
+for(let i=1;i<=12;i=i+1){
+    pis_on_obj[i]=0;
+}
+
+// solids
+const solid = [];
+
+solid[0]=update_position(update_color(create_rectangle(1000,120),[47, 21, 9, 255]),[500,60]);// Ceiling
+solid[1]=update_position(update_color(create_rectangle(39,204),[47, 21, 9, 255]),[96,348]);// ground 1
+solid[2]=update_position(update_color(create_rectangle(40,204),[47, 21, 9, 255]),[134,348]);// trap 1 (falling)
+solid[3]=update_position(update_color(create_rectangle(39,190),[47, 21, 9, 255]),[212,348]);// push 1
+solid[4]=update_position(update_color(create_rectangle(130,204),[47, 21, 9, 255]),[219,348]);// ground 2
+solid[5]=update_position(update_color(create_rectangle(60,204),[47, 21, 9, 255]),[313,348]);// trap 2 (translating)
+solid[6]=update_position(update_color(create_rectangle(39,100),[47, 21, 9, 255]),[421,346]); // push 2
+solid[7]=update_position(update_color(create_rectangle(302,204),[47, 21, 9, 255]),[494,348]);// ground 3
+solid[8]=update_position(update_color(create_rectangle(39,204),[47, 21, 9, 255]),[664,348]);// trap 3 (falling)
+solid[9]=update_position(update_color(create_rectangle(39,160),[47, 21, 9, 255]),[768,326]);// block
+solid[10]=update_position(update_color(create_rectangle(68,204),[47, 21, 9, 255]),[717,348]);// trap 4 (translating)
+solid[11]=update_position(update_color(create_rectangle(152,204),[47, 21, 9, 255]),[824,348]);// ground 4
+solid[12]=update_position(update_color(create_rectangle(39,204),[47, 21, 9, 255]),[918,348]);// trap 5 (translating)
+
+const fallingV=30;
+const translatingV=10;
+const appearingV=8;
+
+const ws=[1000,39,40,39,129,60,39,302,39,39,68,150,39];
+const hs=[120,204,204,200,204,204,150,204,204,160,204,204,204];
+
+// state
+let on_obj=false;
+let vY=0;
+let alive=true;
+let trapSequence=0;
+let recoverSequence=-1;
+let gametime=0;
+
+const door=update_position(create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/level-2/door.png"),[918,226]);// door pix [38,40]
+
+function x(object){
+    return query_position(object)[0];
+}
+
+function y(object){
+    return query_position(object)[1];
+}
+
+// 二：主循环
+update_loop(game_state => {
+    
+    const playerPos=query_position(player);
+
+    // alive
+    if(alive){
+        // player movement
+        if(input_key_down("a")){
+            playerPos[0]=playerPos[0]- P_MOVE_V;
+        }
+        
+        if(input_key_down("d")){
+            playerPos[0]=playerPos[0]+ P_MOVE_V;
+        }
+        
+        if(!on_obj){
+            vY=vY+GRAVITY;
+            playerPos[1]=playerPos[1]+vY;
+        }
+        
+        if(input_key_down("w")&&on_obj){
+            vY=JUMP_FORCE;
+            on_obj=false;
+        }
+    
+        // Reset on_obj before checking collisions
+        on_obj = false;
+        let on_object_check = 0;
+        for (let i = 0; i < array_length(solid); i = i + 1) {
+            const objPos = query_position(solid[i]);
+            const objW = ws[i];
+            const objH = hs[i];
+            // Top collision (player lands on solid)
+            if (!on_obj && vY >= 0 &&
+                (playerPos[1] + P_HEIGHT/2 >= objPos[1] - objH/2) &&
+                (playerPos[1] + P_HEIGHT/2 <= objPos[1] - objH/2 + 50) &&
+                (playerPos[0] + P_WIDTH/2 > objPos[0] - objW/2) &&
+                (playerPos[0] - P_WIDTH/2 < objPos[0] + objW/2)) {
+                playerPos[1] = objPos[1] - objH/2 - P_HEIGHT/2;
+                vY = 0;
+                on_obj = true;
+                on_object_check = 1;
+            }
+            // Bottom collision (player jumps and hits bottom of solid)
+            else if (vY < 0 &&
+                (playerPos[1] - P_HEIGHT/2 <= objPos[1] + objH/2) &&
+                (playerPos[1] - P_HEIGHT/2 >= objPos[1] + objH/2 - 50) &&
+                (playerPos[0] + P_WIDTH/2 > objPos[0] - objW/2) &&
+                (playerPos[0] - P_WIDTH/2 < objPos[0] + objW/2)) {
+                playerPos[1] = objPos[1] + objH/2 + P_HEIGHT/2;
+                vY = 0;
+            }
+            // Left collision (player runs into right side of solid)
+            if (
+                (playerPos[0] + P_WIDTH/2 >= objPos[0] - objW/2) &&
+                (playerPos[0] + P_WIDTH/2 <= objPos[0] - objW/2 + 20) &&
+                (playerPos[1] + P_HEIGHT/2 > objPos[1] - objH/2) &&
+                (playerPos[1] - P_HEIGHT/2 < objPos[1] + objH/2)
+            ) {
+                playerPos[0] = objPos[0] - objW/2 - P_WIDTH/2;
+            }
+            // Right collision (player runs into left side of solid)
+            else if (
+                (playerPos[0] - P_WIDTH/2 <= objPos[0] + objW/2) &&
+                (playerPos[0] - P_WIDTH/2 >= objPos[0] + objW/2 - 40) &&
+                (playerPos[1] + P_HEIGHT/2 > objPos[1] - objH/2) &&
+                (playerPos[1] - P_HEIGHT/2 < objPos[1] + objH/2)
+            ) {
+                playerPos[0] = objPos[0] + objW/2 + P_WIDTH/2;
+            }
+        }
+        if(on_object_check !== 1){
+            on_obj = false;
+        }
+        
+        // trap 1 falling
+        if(playerPos[0]>=111 && playerPos[1]<=300 && input_key_down("d") && trapSequence===0){
+            trapSequence=1;
+        }
+        
+        if(trapSequence===1){
+            recoverSequence=0;
+        }
+        
+        if(recoverSequence===0){
+            update_position(solid[2],[x(solid[2]),y(solid[2])+fallingV]);
+        }
+        if(y(solid[2])>=1800 && recoverSequence===0){
+            recoverSequence=1;
+        }
+        
+        if(recoverSequence===1){
+            update_position(solid[2],[x(solid[2]),y(solid[2])-fallingV]);
+        }
+        
+        if(y(solid[2])<=348 && recoverSequence===1){
+            update_position(solid[2],[x(solid[2]),348]);
+            recoverSequence=2;
+        }
+        
+        // push 1
+        if(playerPos[0]>=172 && playerPos[1]<=300 && input_key_down("d") && trapSequence===1){
+            trapSequence=2;
+        }
+        
+        if(trapSequence===2){
+            update_position(solid[3],[x(solid[3]),y(solid[3])- 25]);
+        }
+        
+        if(y(solid[3])<=200 && trapSequence===2){
+            trapSequence=3;
+        }
+        
+        if(trapSequence===3){
+            update_position(solid[3],[x(solid[3])-5,y(solid[3])]); // Fixed: was [x(solid[3]),x(solid[3])]
+        }
+        
+        if(x(solid[3])<=174 && trapSequence===3){
+            update_position(solid[3],[174,y(solid[3])+6]);
+        }
+        
+        if(y(solid[3])>=350 && trapSequence===3){
+            trapSequence=4;
+        }
+        
+        // trap 2
+        if(playerPos[0]>=222 && playerPos[1]<=300 && input_key_down("d") && trapSequence===4){
+            trapSequence=5; 
+        }
+        
+        if(trapSequence===5){
+            update_position(solid[5],[x(solid[5])+appearingV,y(solid[5])]);
+        }
+        
+        if(x(solid[5])>=362 && trapSequence===5){
+            trapSequence=6;
+        }
+        
+        if(trapSequence===6){
+            update_position(solid[5],[x(solid[5])-appearingV,y(solid[5])]);
+        }
+        
+        if(x(solid[5])<=313 && trapSequence===6){
+            update_position(solid[5],[313,y(solid[5])]);
+        }
+        
+        // push 2 
+        if(playerPos[0]>=380 && playerPos[1]<=300 && trapSequence===6){
+            trapSequence=7;
+        }
+        
+        if(trapSequence===7){
+            update_position(solid[6],[x(solid[6]),y(solid[6])-20]); // Fixed: was y(solid[1])
+            update_position(solid[5],[x(solid[5])+20,y(solid[5])]);
+        }
+        
+        if(y(solid[6])<=196 && trapSequence===7){
+            trapSequence=8;
+        }
+        
+        if(trapSequence===8){
+            update_position(solid[6],[x(solid[6])-6,196]);
+        }
+        
+        if(x(solid[6])<=110 && trapSequence===8){
+            trapSequence=9;
+        }
+        
+        if(trapSequence===9){
+            update_position(solid[6],[110,y(solid[6])+appearingV]);
+            update_position(solid[5],[x(solid[5])-10,y(solid[5])]);
+        }
+        
+        if((y(solid[6])>=348|| x(solid[5])<=313 )&& trapSequence===9){ // Changed from 290 to 287 (original height)
+            trapSequence=10;
+        }
+    
+        // trap 4
+        if(playerPos[0]>=635 && trapSequence===10){
+            trapSequence=11;
+        }
+        
+        if(trapSequence===11){
+            update_position(solid[10],[x(solid[10])+translatingV,y(solid[10])]);
+        }
+        
+        if(x(solid[10])>=800 && trapSequence===11){
+            gametime=get_game_time(); // Fixed: was get_time
+            trapSequence=12;
+        }
+    
+        // trap 3 falling
+        if(playerPos[0]>=600 && trapSequence===12){
+            trapSequence=13;
+        }
+        
+        if(trapSequence===13 && get_game_time()-gametime>=500){ // Fixed: comparison
+            update_position(solid[8],[x(solid[8]),y(solid[8])+fallingV]);
+        }
+        
+        if(y(solid[8])>=1000 && trapSequence===13){
+            trapSequence=14;
+        }
+        
+        if(trapSequence===14){
+            update_position(solid[8],[x(solid[8]),y(solid[8])-fallingV]);
+        }
+        
+        if(y(solid[8])<=348 && trapSequence===14){
+            trapSequence=15;
+        }
+     
+        // block
+        if(playerPos[0]>=680 && playerPos[1]<=300 && trapSequence===15){
+            trapSequence=16;
+        }
+        
+        if(trapSequence===16){
+            update_position(solid[9],[x(solid[9]),y(solid[9])-2*appearingV]);
+        }
+        
+        if(y(solid[9])<=200 && trapSequence===16){
+            gametime=get_game_time();
+            trapSequence=17;
+        }
+        
+        if(trapSequence===17&& get_game_time()-gametime>=1000){
+            trapSequence=17.5;
+        }
+        if(trapSequence===17.5){
+            update_position(solid[9],[x(solid[9]),y(solid[9])+appearingV]); // Fixed: was -appearingV
+        }
+        
+        if(y(solid[9])>=324 && trapSequence===17.5){
+            trapSequence=18;
+        }
+        
+        // trap 5
+        if(playerPos[0]>=870 && playerPos[1]<=300 && trapSequence===18){
+            trapSequence=19; // Fixed: was ===18
+        }
+        
+        if(trapSequence===19){ // Fixed: was 18
+            update_position(solid[12],[x(solid[12])+translatingV,y(solid[12])]);
+            update_position(door,[x(door)+translatingV,y(door)]);
+        }
+        
+        if(x(solid[12])>=970 && trapSequence===19){ // Fixed: was 18
+            update_position(solid[12],[968,y(solid[12])]); // Fixed: was 971
+            update_position(door,[968,y(door)]); // Fixed: was 971
+            trapSequence=20;
+        }
+     
+        update_position(player,playerPos);
+       
+        if(gameobjects_overlap(player,door)){
+            update_position(player,[968,211]);
+            return undefined;
+        }
+        
+        if(playerPos[1]>=600){
+            alive=false;
+            update_position(pieces[1],[playerPos[0]-3.5,playerPos[1]-100-15]);
+            update_position(pieces[2],[playerPos[0]+2.5,playerPos[1]-9]);
+            update_position(pieces[3],[playerPos[0]-4,playerPos[1]-13]);
+            update_position(pieces[4],[playerPos[0],playerPos[1]-5]);
+            update_position(pieces[5],[playerPos[0]+4,playerPos[1]-6]);
+            update_position(pieces[6],[playerPos[0]-3.5,playerPos[1]+3]);
+            update_position(pieces[7],[playerPos[0],playerPos[1]+4]);
+            update_position(pieces[8],[playerPos[0]+5,playerPos[1]+3]);
+            update_position(pieces[9],[playerPos[0]+2,playerPos[1]+2]);
+            update_position(pieces[10],[playerPos[0]-2,playerPos[1]+4]);
+            update_position(pieces[11],[playerPos[0]+3.5,playerPos[1]+10]);
+            update_position(pieces[12],[playerPos[0]+3.5,playerPos[1]+14.5]);
+        }
+    }else{
+        let pisPos=[];
+        for(let j=1;j<=12;j=j+1){
+            pisPos[j]=query_position(pieces[j]);
+            
+            if(pis_on_obj[j]===0){
+                piecesVY[j]=piecesVY[j]+GRAVITY;
+                pisPos[j][1]=pisPos[j][1]+piecesVY[j];
+            }
+
+            pis_on_obj[j] = 0;
+            let on_object_check= 0;
+            for (let i = 0; i < array_length(solid); i = i + 1) {
+                const objPos = query_position(solid[i]);
+                const objW = ws[i];
+                const objH = hs[i];
+                // Top collision (player lands on solid)
+                if (!pis_on_obj[j] && piecesVY[j] >= 0 &&
+                    (pisPos[j][1] + pis_H[j]/2 >= objPos[1] - objH/2) &&
+                    (pisPos[j][1] + pis_H[j]/2 <= objPos[1] - objH/2 + 50) &&
+                    (pisPos[j][0] + pis_W/2 > objPos[0] - objW/2) &&
+                    (pisPos[j][0] - pis_W/2 < objPos[0] + objW/2)) {
+                    pisPos[j][1] = objPos[1] - objH/2 - pis_H/2;
+                    piecesVY[j] = 0;
+                    pis_on_obj = 1;
+                    on_object_check = 1;
+                }
+                // Bottom collision (player jumps and hits bottom of solid)
+                else if (piecesVY[j] < 0 &&
+                    (pisPos[j][1] - pis_H[j]/2 <= objPos[1] + objH/2) &&
+                    (pisPos[j][1] - pis_H[j]/2 >= objPos[1] + objH/2 - 50) &&
+                    (pisPos[j][0] + pis_W[j]/2 > objPos[0] - objW/2) &&
+                    (pisPos[j][0] - pis_W[j]/2 < objPos[0] + objW/2)) {
+                    pisPos[j][1] = objPos[1] + objH/2 + pis_H/2;
+                    piecesVY[j] = 0;
+                }
+                // Left collision (player runs into right side of solid)
+                if (
+                    (pisPos[j][0] + pis_W[j]/2 >= objPos[0] - objW/2) &&
+                    (pisPos[j][0] + pis_W[j]/2 <= objPos[0] - objW/2 + 20) &&
+                    (pisPos[j][1] + pis_H[j]/2 > objPos[1] - objH/2) &&
+                    (pisPos[j][1] - pis_H[j]/2 < objPos[1] + objH/2)
+                ) {
+                    pisPos[j][0] = objPos[0] - objW/2 - pis_W/2;
+                }
+                // Right collision (player runs into left side of solid)
+                else if (
+                    (pisPos[0] - pis_W[j]/2 <= objPos[0] + objW/2) &&
+                    (pisPos[0] - pis_W[j]/2 >= objPos[0] + objW/2 - 40) &&
+                    (pisPos[1] + pis_H[j]/2 > objPos[1] - objH/2) &&
+                    (pisPos[1] - pis_H[j]/2 < objPos[1] + objH/2)
+                ) {
+                    pisPos[0] = objPos[0] + objW/2 + pis_W/2;
+                }
+            }
+            if(on_object_check[j] !== 1){
+                pis_on_obj[j] = 0;
+            }
+            
+        }
+        alive=false;
+    }    
+    
+    debug_log("Player position: " + stringify(playerPos));
+    debug_log("piece 1 position: " + stringify(x(pieces[1]))+stringify(y(pieces[1])));
+    debug_log("On object: " + stringify(on_obj));
+    debug_log("trap 1"+stringify(query_position(solid[2])));
+});
+
+// 三：构建游戏
+build_game();
