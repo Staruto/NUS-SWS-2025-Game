@@ -1,0 +1,47 @@
+import{
+    set_dimensions, create_rectangle, create_sprite, create_text,
+    query_position, query_scale, update_color, update_position, update_scale,
+    update_text, update_to_top, set_fps, get_loop_count, enable_debug,
+    debug_log, input_key_down, gameobjects_overlap, update_loop, build_game, 
+    create_audio, loop_audio, stop_audio, play_audio, get_game_time, create_circle
+} from "arcade_2d";
+
+set_dimensions([1000,600]);
+
+let t=0;
+
+let curtainSequence=0;
+const curtain_1=update_position(create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/main/curtain/curtain1.png"), [500,-300]);
+const curtain_2=update_position(create_sprite("https://raw.githubusercontent.com/Staruto/NUS-SWS-2025-Game/refs/heads/main/curtain/curtain2.png"), [500,900]);
+
+update_loop(game_state=>{
+    
+    const curtain_1Pos=query_position(curtain_1);
+    const curtain_2Pos=query_position(curtain_2);
+    
+    if(curtainSequence===0){
+        update_to_top(update_position(curtain_1,[500,curtain_1Pos[1]+20]));
+        update_to_top(update_position(curtain_2,[500,curtain_2Pos[1]-20]));
+    }
+    
+    if(curtainSequence===0&&curtain_1Pos[1]>=270){
+        curtainSequence=1;
+        t=get_game_time();
+    }
+    
+    if(curtainSequence===1&&get_game_time()-t>=300){
+        curtainSequence=2;
+    }
+    
+    if(curtainSequence===2){
+        update_to_top(update_position(curtain_1,[500,curtain_1Pos[1]-20]));
+        update_to_top(update_position(curtain_2,[500,curtain_2Pos[1]+20]));
+    }
+    
+    if(curtainSequence===2&&curtain_1Pos[1]<=-300){
+        curtainSequence=3;
+    }
+    
+});
+
+build_game();
