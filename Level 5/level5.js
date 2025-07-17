@@ -4,6 +4,8 @@ import {
   get_game_time
 } from "arcade_2d";
 
+enable_debug();
+
 set_dimensions([1000, 600]);
 const background = update_color(create_rectangle(2000, 2000), [255, 0, 0, 255]);
 
@@ -59,9 +61,9 @@ const gear = update_color(update_scale(update_position(
   create_circle(200), [9999, 9999]),
   [1.5, 1.5]), [0, 0, 0, 255]
 );
-let gear_base_pos = [1300, 280];
+let gear_base_pos = [1300, 200];
 let gear_active = false;
-const GEAR_SPEED = 2;
+const GEAR_SPEED = 2.01;
 
 // Shake control
 let shakeEnabled = false;
