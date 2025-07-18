@@ -40,7 +40,7 @@ const PLAYER_WIDTH = 20;
 const PLAYER_HEIGHT = 40;
 
 const PLAYER_MOVE_SPEED = 5;
-const background=update_position(update_color(create_rectangle(1000,600),[40,40,40,255]),[500,300]);
+const background=update_position(update_color(create_rectangle(1000,600),[205, 118, 71, 255]),[500,300]);
 const player = update_position(create_rectangle(PLAYER_WIDTH, PLAYER_HEIGHT), [-700,-700]);
 let t=0;
 let k=-1;
