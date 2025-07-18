@@ -177,7 +177,7 @@ const LEVEL5_FALLING_V = 30;
 const LEVEL5_TRANSLATING_V = 10;
 const LEVEL5_APPEARING_V = 8;
 const level5_ws = [1000,39,40,39,129,60,39,302,39,39,68,150,55];
-const level5_hs = [120,204,204,200,204,204,150,204,204,160,204,204,204];
+const level5_hs = [120,204,204,190,204,204,150,204,204,160,204,204,204];
 
 const level5_solids = [];
 for(let i=0;i<13;i=i+1){
